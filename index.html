@@ -2,60 +2,22 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <title>Family Tree</title>
-  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/tree.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Boonyaiwong Family Tree</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <div id="toolbar">
-    <button onclick="TreeApp.zoomIn()">+</button>
-    <button onclick="TreeApp.zoomOut()">-</button>
-    <button onclick="TreeApp.resetZoom()">พอดีจอ</button>
-    <input type="text" id="searchInput" placeholder="ค้นหาชื่อ..."
-           oninput="TreeApp.search(this.value)">
-    <button onclick="TreeApp.exportImage('png')">PNG</button>
-    <button onclick="TreeApp.exportImage('jpg')">JPG</button>
-    <button onclick="TreeApp.exportImage('pdf')">PDF</button>
-  </div>
-
-  <div id="treeContainer"></div>
-
-  <!-- Modal -->
-  <div id="personModal" class="person-modal-overlay" onclick="TreeApp.closeModal(event)">
-    <div class="person-modal" onclick="event.stopPropagation()">
-      <div class="person-modal-header">
-        <button class="person-modal-close" onclick="TreeApp.closeModal()">&times;</button>
-        <img id="modalAvatar" class="person-modal-avatar" src="" alt="รูปโปรไฟล์">
-      </div>
-      <div class="person-modal-body">
-        <h2 id="modalName" class="person-modal-name"></h2>
-        <span id="modalGender" class="person-modal-gender"></span>
-        <div id="modalInfo" class="person-modal-info"></div>
-      </div>
+  <header class="header">
+    <h1>บุญใหญ่วงศ์</h1>
+    <div class="toolbar">
+      <input type="text" id="searchInput" placeholder="ค้นหาชื่อ...">
+      <button id="expandAll">ขยายทั้งหมด</button>
+      <button id="collapseAll">ย่อทั้งหมด</button>
     </div>
-  </div>
+  </header>
 
-  <!-- Libraries -->
-  <script src="https://d3js.org/d3.v7.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <main id="treeContainer"></main>
 
-  <!-- ต้องรันผ่านเซิร์ฟเวอร์ เพราะเป็น ES Module -->
-  <script type="module" src="app.js"></script>
-
-  <script>
-    // ตัวอย่างเรียกใช้หลังโหลดข้อมูล
-    document.addEventListener('DOMContentLoaded', () => {
-      const data = [
-        { id: '1', name: 'ปู่ทวด', gender: 'ช', spouse: '2' },
-        { id: '2', name: 'ย่าทวด', gender: 'ญ', spouse: '1' },
-        { id: '3', name: 'ลุงใหญ่', gender: 'ช', father: '1', mother: '2' },
-        { id: '4', name: 'พ่อ', gender: 'ช', father: '1', mother: '2', spouse: '5' },
-        { id: '5', name: 'แม่', gender: 'ญ', spouse: '4' },
-        { id: '6', name: 'ฉัน', gender: 'ช', father: '4', mother: '5', nickname: 'ตั้ม', birth: '1 ม.ค. 2520' }
-      ];
-
-      TreeApp.init('treeContainer', data, ['1']);
-    });
-  </script>
+  <script type="module" src="js/app.js"></script>
 </body>
 </html>
