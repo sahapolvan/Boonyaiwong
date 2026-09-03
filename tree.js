@@ -570,3 +570,128 @@ const TreeApp = (function () {
     search: searchNode
   };
 })();
+/* ===== Export ===== */
+function getTreeBounds() {
+  if (!flatNodes.length) return { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+
+  flatNodes.forEach(d => {
+    let left, right, top = d.y, bottom = d.y + CARD_H;
+
+    if (d.type === 'multi') {
+      left = d.anchorX;
+      const last = d.spouses[d.spouses.length - 1];
+      right = last ? last.cardX + CARD_W : left + CARD_W;
+    } else if (d.type === 'couple') {
+      left = d.x - CARD_W - COUPLE_GAP / 2;
+      right = d.x + CARD_W + COUPLE_GAP / 2;
+    } else {
+      left = d.x - CARD_W / 2;
+      right = d.x + CARD_W / 2;
+    }
+
+    // รวมลูกหลานด้านล่างสุด
+    let deepest = bottom;
+    function findDeep(node) {
+      if (!node) return;
+      if (node.y + CARD_H > deepest) deepest = node.y + CARD_H;
+      if (node.type === 'multi') {
+        node.spouses.forEach(s => s.children.forEach(findDeep));
+      } else if (node.children) {
+        node.children.forEach(findDeep);
+      }
+    }
+    findDeep(d);
+
+    minX = Math.min(minX, left - 20);
+    maxX = Math.max(maxX, right + 20);
+    minY = Math.min(minY, top - 20);
+    maxY = Math.max(maxY, deepest + 40);
+  });
+
+  return { minX, maxX, minY, maxY };
+}
+
+function exportImage(format) {
+  if (typeof html2canvas === 'undefined') {
+    alert('กำลังโหลดตัวสร้างภาพ กรุณารอสักครู่แล้วลองอีกครั้ง');
+    return;
+  }
+
+  const bounds = getTreeBounds();
+  const treeWidth = bounds.maxX - bounds.minX;
+  const treeHeight = bounds.maxY - bounds.minY;
+
+  if (treeWidth <= 0 || treeHeight <= 0) {
+    alert('ไม่พบผังสำหรับบันทึก');
+    return;
+  }
+
+  // ซูมให้เห็นทั้งผังก่อนบันทึก
+  const originalTransform = d3.zoomTransform(svg.node());
+  const scale = Math.min(
+    containerEl.clientWidth / treeWidth,
+    containerEl.clientHeight / treeHeight
+  ) * 0.92;
+  const tx = containerEl.clientWidth / 2 - (bounds.minX + treeWidth / 2) * scale;
+  const ty = containerEl.clientHeight / 2 - (bounds.minY + treeHeight / 2) * scale;
+
+  svg.call(zoomHandler.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+
+  // รอให้การซูมเสร็จ แล้วค่อย capture
+  setTimeout(() => {
+    html2canvas(containerEl, {
+      backgroundColor: '#f6f3ed',
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      logging: false
+    }).then(canvas => {
+      // คืนค่าซูมเดิม
+      svg.call(zoomHandler.transform, originalTransform);
+
+      if (format === 'png' || format === 'jpg') {
+        const mime = format === 'jpg' ? 'image/jpeg' : 'image/png';
+        const link = document.createElement('a');
+        link.download = `family-tree.${format}`;
+        link.href = canvas.toDataURL(mime, 0.95);
+        link.click();
+      }
+      else if (format === 'pdf') {
+        const { jsPDF } = window.jspdf;
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF({
+          orientation: treeWidth > treeHeight ? 'landscape' : 'portrait',
+          unit: 'mm',
+          format: 'a4'
+        });
+
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
+        const imgW = canvas.width * ratio;
+        const imgH = canvas.height * ratio;
+        const x = (pageWidth - imgW) / 2;
+        const y = (pageHeight - imgH) / 2;
+
+        pdf.addImage(imgData, 'PNG', x, y, imgW, imgH);
+        pdf.save('family-tree.pdf');
+      }
+    }).catch(err => {
+      svg.call(zoomHandler.transform, originalTransform);
+      console.error(err);
+      alert('บันทึกไม่สำเร็จ อาจเกิดจากรูปภาพภายนอกถูกบล็อก CORS');
+    });
+  }, 350);
+}
+return {
+  init: function(containerId, rawData, rootIds) {
+    clear();
+    drawTree(containerId, rawData, rootIds);
+  },
+  zoom: zoom,
+  resetZoom: resetZoom,
+  search: searchNode,
+  exportImage: exportImage
+};
