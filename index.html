@@ -18,7 +18,7 @@
       --line: #8d6e63;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: "Sarabun", "Kanit", sans-serif; color: var(--text); background: #fff; }
+    body { font-family: "Sarabun", "Kanit", sans-serif; color: var(--text); background: #fff; overflow: hidden; }
 
     #landing {
       min-height: 100vh;
@@ -63,26 +63,26 @@
     .tab { padding: 0.5rem 1.1rem; border-radius: 999px; white-space: nowrap; cursor: pointer; opacity: 0.7; font-size: 0.95rem; }
     .tab.active { background: rgba(255,255,255,0.2); opacity: 1; }
     .toolbar {
-      padding: 1rem 1.2rem; background: white;
-      display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; border-bottom: 1px solid #e0e0e0;
+      padding: 0.8rem 1.2rem; background: white;
+      display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: center; border-bottom: 1px solid #e0e0e0;
     }
-    .search { flex: 1; min-width: 260px; position: relative; }
+    .search { flex: 1; min-width: 200px; position: relative; }
     .search input {
-      width: 100%; padding: 0.85rem 1rem 0.85rem 2.6rem; border: 1px solid #ddd;
-      border-radius: 999px; font-size: 1rem; outline: none; font-family: inherit;
+      width: 100%; padding: 0.7rem 1rem 0.7rem 2.4rem; border: 1px solid #ddd;
+      border-radius: 999px; font-size: 0.95rem; outline: none; font-family: inherit;
     }
-    .search::before { content: "🔍"; position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); }
-    .controls { display: flex; gap: 0.6rem; }
+    .search::before { content: "🔍"; position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%); font-size: 0.85rem; }
+    .controls { display: flex; gap: 0.5rem; }
     .controls button {
-      width: 42px; height: 42px; border-radius: 50%; border: 1px solid #ddd;
-      background: white; cursor: pointer; font-size: 1.2rem; display: grid; place-items: center; transition: all .2s;
+      width: 38px; height: 38px; border-radius: 50%; border: 1px solid #ddd;
+      background: white; cursor: pointer; font-size: 1.1rem; display: grid; place-items: center; transition: all .2s;
     }
     .controls button:hover { background: var(--green-light); border-color: var(--green); }
     .info {
-      background: var(--cream); padding: 0.5rem 1rem; border-radius: 999px; font-weight: 600; font-size: 0.95rem;
+      background: var(--cream); padding: 0.4rem 0.9rem; border-radius: 999px; font-weight: 600; font-size: 0.85rem;
     }
-    #treeContainer { flex: 1; overflow: hidden; position: relative; }
-    #treeSvg { width: 100%; height: 100%; cursor: grab; }
+    #treeContainer { flex: 1; overflow: hidden; position: relative; background: var(--cream); }
+    #treeSvg { width: 100%; height: 100%; cursor: grab; display: block; }
     #treeSvg:active { cursor: grabbing; }
 
     .link {
@@ -92,25 +92,28 @@
       fill: none; stroke: var(--line); stroke-width: 2px;
     }
     .node-group { cursor: pointer; }
-    .person-card {
-      position: absolute; display: flex; align-items: center; gap: 8px;
-      padding: 6px 10px; border-radius: 999px;
-      box-shadow: 0 3px 10px rgba(0,0,0,0.08); border: 1px solid rgba(0,0,0,0.08);
-      font-size: 13px; font-weight: 600; white-space: nowrap;
-      transition: transform .2s, box-shadow .2s;
+    .person-bg {
+      fill: var(--male); stroke: rgba(0,0,0,0.1); stroke-width: 1;
+      rx: 999px; ry: 999px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
     }
-    .person-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.13); }
-    .person-card img {
-      width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: #ddd;
+    .person-bg:hover { filter: drop-shadow(0 4px 8px rgba(0,0,0,0.15)); }
+    .person-photo {
+      clip-path: circle(50%);
     }
-    .person-card .name { line-height: 1.2; }
+    .person-name {
+      font-size: 13px; font-weight: 600; fill: #222; font-family: "Sarabun", sans-serif;
+      pointer-events: none; dominant-baseline: central;
+    }
     .heart {
-      fill: #e53935; font-size: 13px; pointer-events: none;
+      fill: #e53935; font-size: 12px; pointer-events: none;
     }
-    .node-group.highlight .person-card {
-      box-shadow: 0 0 0 3px var(--orange), 0 6px 18px rgba(0,0,0,0.15);
+    .node-group.highlight .person-bg {
+      stroke: var(--orange); stroke-width: 3px;
     }
     .dim { opacity: 0.18; }
+    .error-box {
+      padding: 1rem; background: #fee; color: #c33; border-radius: 8px; margin: 1rem;
+    }
   </style>
 </head>
 <body>
@@ -211,7 +214,10 @@
     function buildFamilyTree(rawData, rootIds) {
       const byId = normalizeFamilyData(rawData);
 
-      function buildNodes(personId) {
+      function buildNodes(personId, visited = new Set()) {
+        if (visited.has(personId)) return [];
+        visited.add(personId);
+
         const person = byId[personId];
         if (!person) return [];
 
@@ -227,11 +233,12 @@
           const spouse = byId[person.spouses[0]];
           const childIds = person.childrenBySpouse[person.spouses[0]] || [];
           const children = [];
-          childIds.forEach(cid => children.push(...buildNodes(cid)));
+          childIds.forEach(cid => children.push(...buildNodes(cid, new Set(visited))));
+          if (spouse) visited.add(spouse.id);
 
           return [{
             type: 'couple',
-            people: [person, spouse],
+            people: [person, spouse].filter(Boolean),
             children: children
           }];
         }
@@ -244,9 +251,10 @@
             const spouse = byId[spouseId];
             const childIds = person.childrenBySpouse[spouseId] || [];
             const children = [];
-            childIds.forEach(cid => children.push(...buildNodes(cid)));
+            childIds.forEach(cid => children.push(...buildNodes(cid, new Set(visited))));
+            if (spouse) visited.add(spouse.id);
             return { spouse, children };
-          })
+          }).filter(s => s.spouse)
         }];
       }
 
@@ -277,7 +285,7 @@
     }
 
     /* ===== ค่าคงที่ ===== */
-    const CARD_W = 110, CARD_H = 46, COUPLE_GAP = 22, LEVEL_H = 130, SIBLING_GAP = 34;
+    const CARD_W = 110, CARD_H = 46, PHOTO_SIZE = 32, COUPLE_GAP = 22, LEVEL_H = 130, SIBLING_GAP = 34;
     const MALE_COLOR = "#cfe2f3", FEMALE_COLOR = "#f4cccc";
 
     let svg, g, zoomHandler, flatNodes = [];
@@ -291,7 +299,7 @@
 
     function getPhoto(person) {
       if (person.photo && person.photo.trim()) return person.photo;
-      return `https://i.pravatar.cc/150?u=${encodeURIComponent(person.name)}`;
+      return `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name)}&background=random&color=fff&size=64`;
     }
 
     function genderColor(gender) {
@@ -304,6 +312,7 @@
 
     /* ===== Layout ===== */
     function measure(node) {
+      if (!node) return;
       if (!node.children) node.children = [];
 
       if (node.type === 'single') {
@@ -314,7 +323,7 @@
         node.subtreeW = Math.max(CARD_W * 2 + COUPLE_GAP, childrenWidth(node.children));
       }
       else if (node.type === 'multi') {
-        let totalW = CARD_W; // แก้ว
+        let totalW = CARD_W; // anchor
         node.spouses.forEach(s => {
           s.children.forEach(c => measure(c));
           s.columnW = Math.max(CARD_W, childrenWidth(s.children));
@@ -339,6 +348,7 @@
     }
 
     function place(node, x, y) {
+      if (!node) return;
       node.x = x;
       node.y = y;
       flatNodes.push(node);
@@ -350,13 +360,12 @@
         if (node.children.length > 0) placeChildren(node.children, x, y + LEVEL_H);
       }
       else if (node.type === 'multi') {
-        // anchor อยู่ซ้ายสุด
         node.anchorX = x - node.subtreeW / 2;
 
-        let curX = node.anchorX + CARD_W + COUPLE_GAP; // จุดเริ่มต้นคอลัมน์คู่แรก
+        let curX = node.anchorX + CARD_W + COUPLE_GAP;
         node.spouses.forEach((s, i) => {
-          s.x = curX + s.columnW / 2;      // จุดกลางคอลัมน์คู่สมรส
-          s.cardX = s.x - CARD_W / 2;       // จุดซ้ายการ์ดคู่สมรส
+          s.x = curX + s.columnW / 2;
+          s.cardX = s.x - CARD_W / 2;
           s.y = y;
 
           if (s.children.length > 0) {
@@ -378,7 +387,13 @@
         return;
       }
 
-      FAMILY_DATA = buildFamilyTree(familyRawData, ["1"]);
+      try {
+        FAMILY_DATA = buildFamilyTree(familyRawData, ["1"]);
+      } catch (err) {
+        document.getElementById('stats').textContent = 'สร้างผังไม่สำเร็จ';
+        console.error(err);
+        return;
+      }
 
       const container = document.getElementById('treeContainer');
       const width = container.clientWidth;
@@ -390,7 +405,7 @@
       g = svg.append("g");
 
       zoomHandler = d3.zoom()
-        .scaleExtent([0.15, 2])
+        .scaleExtent([0.1, 2])
         .on("zoom", (e) => g.attr("transform", e.transform));
       svg.call(zoomHandler);
 
@@ -415,7 +430,7 @@
           }
           else if (d.type === 'multi') {
             d.spouses.forEach(s => {
-              const midX = (node.anchorX + CARD_W + s.cardX) / 2;
+              const midX = (d.anchorX + CARD_W + s.cardX) / 2;
               path += childLine(midX, d.y + CARD_H, s.children);
             });
           }
@@ -430,12 +445,12 @@
         .attr("class", "marriage-line")
         .attr("d", d => {
           let path = "";
-          const y = d.y + CARD_H / 2 + 4;
+          const y = d.y + CARD_H / 2;
 
           if (d.type === 'couple') {
             const sorted = sortCouple(d.people);
-            const leftX = d.x - (CARD_W + COUPLE_GAP) / 2 + CARD_W / 2;  // ขอบขวาของคนแรก
-            const rightX = d.x + (CARD_W + COUPLE_GAP) / 2 - CARD_W / 2; // ขอบซ้ายของคนที่สอง
+            const leftX = d.x - (CARD_W + COUPLE_GAP) / 2 + CARD_W;
+            const rightX = d.x + (CARD_W + COUPLE_GAP) / 2 - CARD_W;
             path += `M${leftX},${y} L${rightX},${y}`;
           }
           else if (d.type === 'multi') {
@@ -451,17 +466,13 @@
 
       // วาดหัวใจบนเส้นสมรส
       g.selectAll(".heart")
-        .data(flatNodes.filter(d => d.type === 'couple' || d.type === 'multi'))
+        .data(flatNodes.filter(d => d.type === 'couple'))
         .enter().append("text")
         .attr("class", "heart")
         .attr("text-anchor", "middle")
-        .attr("y", d => d.y + CARD_H / 2 + 8)
-        .attr("x", d => {
-          if (d.type === 'couple') return marriageMidX(d);
-          if (d.type === 'multi') return d.anchorX + CARD_W / 2;
-          return d.x;
-        })
-        .text(d => d.type === 'multi' ? "" : "❤");
+        .attr("y", d => d.y + CARD_H / 2 + 4)
+        .attr("x", d => marriageMidX(d))
+        .text("❤");
 
       // วาดโหนด
       const nodeSel = g.selectAll(".node-group")
@@ -490,27 +501,26 @@
         }
       });
 
-      // จัดให้อยู่กลางจอ
-      const bounds = {
-        minX: d3.min(flatNodes, d => {
-          if (d.type === 'multi') return d.anchorX - 20;
-          if (d.type === 'couple') return d.x - CARD_W - COUPLE_GAP / 2 - 20;
-          return d.x - CARD_W / 2 - 20;
-        }) || 0,
-        maxX: d3.max(flatNodes, d => {
-          if (d.type === 'multi') {
-            const last = d.spouses[d.spouses.length - 1];
-            return last.cardX + CARD_W + 20;
-          }
-          if (d.type === 'couple') return d.x + CARD_W + COUPLE_GAP / 2 + 20;
-          return d.x + CARD_W / 2 + 20;
-        }) || 0,
-        maxY: d3.max(flatNodes, d => d.y + CARD_H + 50) || 0
-      };
+      // คำนวณขอบเขตผัง
+      let minX = 0, maxX = 0, maxY = 0;
+      flatNodes.forEach(d => {
+        if (d.type === 'multi') {
+          minX = Math.min(minX, d.anchorX - 20);
+          const last = d.spouses[d.spouses.length - 1];
+          maxX = Math.max(maxX, last.cardX + CARD_W + 20);
+        } else if (d.type === 'couple') {
+          minX = Math.min(minX, d.x - CARD_W - COUPLE_GAP / 2 - 20);
+          maxX = Math.max(maxX, d.x + CARD_W + COUPLE_GAP / 2 + 20);
+        } else {
+          minX = Math.min(minX, d.x - CARD_W / 2 - 20);
+          maxX = Math.max(maxX, d.x + CARD_W / 2 + 20);
+        }
+        maxY = Math.max(maxY, d.y + CARD_H + 50);
+      });
 
-      const treeW = bounds.maxX - bounds.minX;
+      const treeW = maxX - minX;
       const scale = Math.min(0.75, width / Math.max(treeW, width * 0.4));
-      const tx = width / 2 - (bounds.minX + treeW / 2) * scale;
+      const tx = width / 2 - (minX + treeW / 2) * scale;
       const ty = 30;
 
       svg.call(zoomHandler.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
@@ -545,23 +555,38 @@
     }
 
     function drawPersonCard(el, x, y, person) {
-      const fo = el.append("foreignObject")
-        .attr("x", x).attr("y", y)
-        .attr("width", CARD_W).attr("height", CARD_H);
+      const card = el.append("g").attr("transform", `translate(${x},${y})`);
 
-      const div = fo.append("xhtml:div")
-        .attr("class", "person-card")
-        .style("background", genderColor(person.gender))
-        .style("width", CARD_W + "px");
+      card.append("rect")
+        .attr("class", "person-bg")
+        .attr("x", 0).attr("y", 0)
+        .attr("width", CARD_W).attr("height", CARD_H)
+        .attr("fill", genderColor(person.gender));
 
-      div.html(`
-        <img src="${getPhoto(person)}" alt="${person.name}">
-        <div>
-          <div class="name">${person.name}</div>
-        </div>
-      `);
-    }
+      card.append("image")
 
+        .attr("class", "person-photo")
+
+        .attr("x", 7).attr("y", 7)
+
+        .attr("width", PHOTO_SIZE).attr("height", PHOTO_SIZE)
+
+        .attr("href", getPhoto(person))
+
+        .attr("preserveAspectRatio", "xMidYMid slice");
+
+
+      card.append("text")
+
+        .attr("class", "person-name")
+
+        .attr("x", 7 + PHOTO_SIZE + 8)
+
+        .attr("y", CARD_H / 2)
+
+        .text(person.name || "");
+
+    }    
     function updateStats() {
 
       const uniqueIds = new Set();
@@ -570,6 +595,8 @@
 
 
       function traverse(node, depth) {
+
+        if (!node) return;
 
         node.people.forEach(p => uniqueIds.add(p.id));
 
@@ -596,8 +623,6 @@
         `${maxDepth + 1} รุ่น · ${uniqueIds.size} สมาชิก`;
 
     }
-
-
     function zoom(amount) {
 
       svg.transition().duration(250).call(zoomHandler.scaleBy, 1 + amount);
@@ -664,8 +689,7 @@
       if (document.getElementById('treePage').style.display === 'flex') drawTree();
 
     });
+    </script>
 
-  </script>
 </body>
 </html>
-  
