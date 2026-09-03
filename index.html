@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>สายใยตระกูล</title>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet" />
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    :root {
+      --green: #2f5d50;
+      --green-light: #e8f0ec;
+      --orange: #d97b58;
+      --cream: #f6f3ed;
+      --text: #2c3e33;
+      --male: #cfe2f3;
+      --female: #f4cccc;
+      --line: #8d6e63;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Sarabun", "Kanit", sans-serif; color: var(--text); background: #fff; }
+
+    #landing {
+      min-height: 100vh;
+      background: linear-gradient(rgba(47, 93, 80, 0.9), rgba(47, 93, 80, 0.88)),
+        url('https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=1400&q=80') center/cover;
+      color: white; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 2rem;
+    }
+    nav {
+      width: 100%; max-width: 960px; background: rgba(255,255,255,0.95);
+      border-radius: 999px; padding: 0.8rem 1.2rem;
+      display: flex; justify-content: space-between; align-items: center; color: var(--text); margin-bottom: 5rem;
+    }
+    .logo { display:flex; align-items:center; gap:0.8rem; font-weight:700; font-size:1.3rem; }
+    .logo-icon {
+      width: 44px; height: 44px; border-radius: 50%; background: var(--green);
+      color: white; display: grid; place-items: center; font-size: 1.1rem;
+    }
+    .menu {
+      width: 40px; height: 40px; border-radius: 50%; background: #f0ece3;
+      display: grid; place-items: center; cursor: pointer;
+    }
+    .badge {
+      background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3);
+      padding: 0.6rem 1.2rem; border-radius: 999px; font-size: 0.95rem; margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 3.2rem; line-height: 1.15; margin-bottom: 1.5rem; font-family: "Kanit", sans-serif; font-weight: 600; }
+    h1 span { color: #f0c2a8; }
+    .desc { max-width: 620px; font-size: 1.15rem; line-height: 1.7; margin-bottom: 2rem; opacity: 0.95; }
+    .btn {
+      display: inline-block; padding: 1rem 2.5rem; border-radius: 999px;
+      text-decoration: none; font-size: 1.1rem; font-weight: 600; transition: transform .2s; border: none; cursor: pointer;
+    }
+    .btn-primary { background: var(--orange); color: white; margin-bottom: 1rem; }
+    .btn-outline { background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.4); }
+    .btn:hover { transform: translateY(-2px); }
+
+    #treePage { height: 100vh; display: none; flex-direction: column; background: var(--cream); }
+    .tabs {
+      display: flex; gap: 0.5rem; padding: 1rem 1.2rem; background: var(--green);
+      color: white; overflow-x: auto;
+    }
+    .tab { padding: 0.5rem 1.1rem; border-radius: 999px; white-space: nowrap; cursor: pointer; opacity: 0.7; font-size: 0.95rem; }
+    .tab.active { background: rgba(255,255,255,0.2); opacity: 1; }
+    .toolbar {
+      padding: 1rem 1.2rem; background: white;
+      display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; border-bottom: 1px solid #e0e0e0;
+    }
+    .search { flex: 1; min-width: 260px; position: relative; }
+    .search input {
+      width: 100%; padding: 0.85rem 1rem 0.85rem 2.6rem; border: 1px solid #ddd;
+      border-radius: 999px; font-size: 1rem; outline: none; font-family: inherit;
+    }
+    .search::before { content: "🔍"; position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); }
+    .controls { display: flex; gap: 0.6rem; }
+    .controls button {
+      width: 42px; height: 42px; border-radius: 50%; border: 1px solid #ddd;
+      background: white; cursor: pointer; font-size: 1.2rem; display: grid; place-items: center; transition: all .2s;
+    }
+    .controls button:hover { background: var(--green-light); border-color: var(--green); }
+    .info {
+      background: var(--cream); padding: 0.5rem 1rem; border-radius: 999px; font-weight: 600; font-size: 0.95rem;
+    }
+    #treeContainer { flex: 1; overflow: hidden; position: relative; }
+    #treeSvg { width: 100%; height: 100%; cursor: grab; }
+    #treeSvg:active { cursor: grabbing; }
+
+    .link {
+      fill: none; stroke: var(--line); stroke-width: 2px; stroke-linejoin: round; stroke-linecap: round;
+    }
+    .node-group { cursor: pointer; }
+    .person-card {
+      position: absolute; display: flex; align-items: center; gap: 8px;
+      padding: 6px 10px; border-radius: 999px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.08); border: 1px solid rgba(0,0,0,0.08);
+      font-size: 13px; font-weight: 600; white-space: nowrap;
+      transition: transform .2s, box-shadow .2s;
+    }
+    .person-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.13); }
+    .person-card img {
+      width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: #ddd;
+    }
+    .person-card .name { line-height: 1.2; }
+    .heart {
+      fill: #e53935; font-size: 14px; pointer-events: none;
+    }
+    .node-group.highlight .person-card {
+      box-shadow: 0 0 0 3px var(--orange), 0 6px 18px rgba(0,0,0,0.15);
+    }
+    .dim { opacity: 0.18; }
+  </style>
+</head>
+<body>
+
+  <section id="landing">
+    <nav>
+      <div class="logo">
+        <div class="logo-icon">สย</div>
+        <div>สายใยตระกูล</div>
+      </div>
+      <div class="menu">☰</div>
+    </nav>
+    <div class="badge">พื้นที่แห่งความทรงจำของทุกคนในครอบครัว</div>
+    <h1>เมื่อทุกเรื่องราว<br><span>เชื่อมถึงกัน</span></h1>
+    <p class="desc">
+      “สายใยตระกูล” รวบรวมรายชื่อ รูปภาพ และความสัมพันธ์ของครอบครัวใหญ่หลายสาขา
+      ให้ลูกหลานมองเห็นว่าเราเดินทางมาจากไหน และยังเชื่อมโยงถึงกันอย่างไร
+    </p>
+    <button class="btn btn-primary" onclick="showTree()">เปิดดูผังครอบครัว ›</button>
+    <br>
+    <button class="btn btn-outline" onclick="showTree()">อ่านเรื่องราวของเรา</button>
+  </section>
+
+  <section id="treePage">
+    <div class="tabs">
+      <div class="tab active">ทั้งหมด</div>
+      <div class="tab">สายเหนือ</div>
+      <div class="tab">สายกลาง</div>
+      <div class="tab">สายใต้</div>
+    </div>
+
+    <div class="toolbar">
+      <div class="search">
+        <input type="text" id="searchInput" placeholder="ค้นหาชื่อหรือนามสกุล" onkeyup="searchNode()" />
+      </div>
+      <div class="controls">
+        <button onclick="zoom(-0.2)" title="ซูมออก">−</button>
+        <button onclick="resetZoom()" title="รีเซ็ต">⟲</button>
+        <button onclick="zoom(0.2)" title="ซูมเข้า">+</button>
+      </div>
+      <div class="info" id="stats">กำลังโหลด...</div>
+    </div>
+
+    <div id="treeContainer">
+      <svg id="treeSvg"></svg>
+    </div>
+  </section>
+
+  <!-- โหลดข้อมูลก่อน -->
+  <script src="data.js"></script>
+
+  <!-- โค้ดวาดผัง -->
+  <script>
+    /* ===== แปลง flat data เป็น tree ===== */
+    function normalizeFamilyData(rawData) {
+      const byId = {};
+      rawData.forEach(p => {
+        let spouses = [];
+        if (p.spouse) {
+          if (Array.isArray(p.spouse)) spouses = [...p.spouse];
+          else if (typeof p.spouse === 'string') spouses = p.spouse.split('|').filter(s => s.trim());
+        }
+
+        byId[p.id] = {
+          ...p,
+          spouse: spouses,
+          spouses: [],
+          childrenBySpouse: {}
+        };
+      });
+
+      // สร้างความสัมพันธ์คู่สมรสแบบสองทาง
+      Object.values(byId).forEach(p => {
+        p.spouse.forEach(sid => {
+          if (byId[sid] && !p.spouses.includes(sid)) {
+            p.spouses.push(sid);
+          }
+        });
+      });
+
+      // จัดกลุ่มลูกตามคู่สมรส
+      Object.values(byId).forEach(child => {
+        if (child.father && byId[child.father] && child.mother && byId[child.mother]) {
+          const father = byId[child.father];
+          const mother = byId[child.mother];
+
+          if (father.spouses.includes(child.mother)) {
+            if (!father.childrenBySpouse[child.mother]) father.childrenBySpouse[child.mother] = [];
+            father.childrenBySpouse[child.mother].push(child.id);
+          }
+
+          if (mother.spouses.includes(child.father)) {
+            if (!mother.childrenBySpouse[child.father]) mother.childrenBySpouse[child.father] = [];
+            mother.childrenBySpouse[child.father].push(child.id);
+          }
+        }
+      });
+
+      return byId;
+    }
+
+    function buildFamilyTree(rawData, rootIds) {
+      const byId = normalizeFamilyData(rawData);
+
+      function buildNodes(personId) {
+        const person = byId[personId];
+        if (!person) return [];
+
+        // ไม่มีคู่สมรส -> โหนดเดี่ยว
+        if (!person.spouses || person.spouses.length === 0) {
+          return [{
+            type: 'single',
+            people: [person],
+            children: []
+          }];
+        }
+
+        // มีคู่สมรส -> สร้าง couple unit ตามจำนวนคู่
+        return person.spouses.map(spouseId => {
+          const spouse = byId[spouseId];
+          const childIds = person.childrenBySpouse[spouseId] || [];
+          const children = [];
+          childIds.forEach(cid => {
+            children.push(...buildNodes(cid));
+          });
+
+          return {
+            type: 'couple',
+            people: [person, spouse],
+            children: children
+          };
+        });
+      }
+
+      // หา root อัตโนมัติ ถ้าไม่ได้ระบุ
+      let roots = rootIds;
+      if (!roots || roots.length === 0) {
+        roots = [];
+        const includedSpouses = new Set();
+        Object.values(byId)
+          .filter(p => (!p.father || !byId[p.father]) && (!p.mother || !byId[p.mother]))
+          .forEach(p => {
+            if (!includedSpouses.has(p.id)) {
+              roots.push(p.id);
+              p.spouses.forEach(sid => includedSpouses.add(sid));
+            }
+          });
+      }
+
+      const children = [];
+      roots.forEach(rid => children.push(...buildNodes(rid)));
+
+      if (children.length === 1) return children[0];
+
+      // มีหลาย root -> ห่อด้วยโหนดเสมือน
+      return {
+        type: 'root',
+        people: [],
+        children: children
+      };
+    }
+
+    /* ===== ค่าคงที่สำหรับวาดผัง ===== */
+    const CARD_W = 110, CARD_H = 46, COUPLE_GAP = 22, LEVEL_H = 130, SIBLING_GAP = 34;
+    const MALE_COLOR = "#cfe2f3", FEMALE_COLOR = "#f4cccc";
+
+    let svg, g, zoomHandler, flatNodes = [];
+    let FAMILY_DATA = null;
+
+    function showTree() {
+      document.getElementById('landing').style.display = 'none';
+      document.getElementById('treePage').style.display = 'flex';
+      drawTree();
+    }
+
+    /* ===== Layout ===== */
+    function nodeCardWidth(node) {
+      if (node.type === 'single') return CARD_W;
+      if (node.type === 'couple') return CARD_W * 2 + COUPLE_GAP;
+      return 0;
+    }
+
+    function measure(node) {
+      if (!node.children || node.children.length === 0) {
+        node.subtreeW = nodeCardWidth(node) || CARD_W;
+        return;
+      }
+
+      let childrenW = 0;
+      node.children.forEach((c, i) => {
+        measure(c);
+        childrenW += c.subtreeW + (i > 0 ? SIBLING_GAP : 0);
+      });
+
+      node.subtreeW = Math.max(nodeCardWidth(node), childrenW);
+    }
+
+    function place(node, x, y) {
+      node.x = x;
+      node.y = y;
+      flatNodes.push(node);
+
+      if (!node.children || node.children.length === 0) return;
+
+      const childrenW = node.children.reduce((sum, c, i) =>
+        sum + c.subtreeW + (i > 0 ? SIBLING_GAP : 0), 0);
+      let startX = x - childrenW / 2;
+      let curX = startX;
+
+      node.children.forEach((child, i) => {
+        if (i > 0) curX += SIBLING_GAP;
+        place(child, curX + child.subtreeW / 2, y + LEVEL_H);
+        curX += child.subtreeW;
+      });
+    }
+
+    function getPhoto(person) {
+      if (person.photo && person.photo.trim()) return person.photo;
+      return `https://i.pravatar.cc/150?u=${encodeURIComponent(person.name)}`;
+    }
+
+    function genderColor(gender) {
+      return gender === 'ช' ? MALE_COLOR : FEMALE_COLOR;
+    }
+
+    /* ===== วาดผัง ===== */
+    function drawTree() {
+      if (typeof familyRawData === 'undefined') {
+        document.getElementById('stats').textContent = 'ไม่พบข้อมูล familyRawData';
+        return;
+      }
+
+      // สร้าง tree จาก id "1" (นก) เป็นต้น
+      FAMILY_DATA = buildFamilyTree(familyRawData, ["1"]);
+
+      const container = document.getElementById('treeContainer');
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+
+      svg = d3.select("#treeSvg").attr("width", width).attr("height", height);
+      svg.selectAll("*").remove();
+
+      g = svg.append("g");
+
+      zoomHandler = d3.zoom()
+        .scaleExtent([0.2, 2])
+        .on("zoom", (e) => g.attr("transform", e.transform));
+      svg.call(zoomHandler);
+
+      flatNodes = [];
+      measure(FAMILY_DATA);
+      place(FAMILY_DATA, 0, 40);
+
+      // วาดเส้น
+      g.selectAll(".link")
+        .data(flatNodes.filter(d => d.children && d.children.length))
+        .enter().append("path")
+        .attr("class", "link")
+        .attr("d", d => {
+          const hasCard = d.type !== 'root';
+          const startY = hasCard ? d.y + CARD_H : d.y;
+          const midY = startY + (LEVEL_H - (hasCard ? CARD_H : 0)) / 2;
+          let path = "";
+          d.children.forEach(c => {
+            path += `M${d.x},${startY} L${d.x},${midY} L${c.x},${midY} L${c.x},${c.y} `;
+          });
+          return path;
+        });
+
+      // วาดโหนด
+      const nodeSel = g.selectAll(".node-group")
+        .data(flatNodes.filter(d => d.type !== 'root'))
+        .enter().append("g")
+        .attr("class", "node-group")
+        .attr("id", d => "node-" + d.people.map(p => p.name).join("-"))
+        .on("click", (e, d) => centerNode(d));
+
+      nodeSel.each(function(d) {
+        const el = d3.select(this);
+
+        if (d.type === 'single') {
+          drawPersonCard(el, d.x - CARD_W / 2, d.y, d.people[0]);
+        } else if (d.type === 'couple') {
+          const totalW = CARD_W * 2 + COUPLE_GAP;
+          // เรียง ญ ซ้าย / ช ขวา
+          const sorted = [...d.people].sort((a, b) => {
+            if (a.gender === 'ญ' && b.gender === 'ช') return -1;
+            if (a.gender === 'ช' && b.gender === 'ญ') return 1;
+            return 0;
+          });
+
+          drawPersonCard(el, d.x - totalW / 2, d.y, sorted[0]);
+          drawPersonCard(el, d.x + COUPLE_GAP / 2, d.y, sorted[1]);
+
+          el.append("text")
+            .attr("class", "heart")
+            .attr("x", d.x)
+            .attr("y", d.y + CARD_H / 2 + 4)
+            .attr("text-anchor", "middle")
+            .text("❤");
+        }
+      });
+
+      // จัดให้อยู่กลางจอ
+      const bounds = {
+        minX: d3.min(flatNodes, d => d.x - nodeCardWidth(d) / 2 - 30) || 0,
+        maxX: d3.max(flatNodes, d => d.x + nodeCardWidth(d) / 2 + 30) || 0,
+        maxY: d3.max(flatNodes, d => d.y + CARD_H + 50) || 0
+      };
+      const treeW = bounds.maxX - bounds.minX;
+      const scale = Math.min(0.8, width / Math.max(treeW, width * 0.5));
+      const tx = width / 2 - (bounds.minX + treeW / 2) * scale;
+      const ty = 20;
+
+      svg.call(zoomHandler.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+
+      updateStats();
+    }
+
+    function drawPersonCard(el, x, y, person) {
+      const fo = el.append("foreignObject")
+        .attr("x", x).attr("y", y)
+        .attr("width", CARD_W).attr("height", CARD_H);
+
+      const div = fo.append("xhtml:div")
+        .attr("class", "person-card")
+        .style("background", genderColor(person.gender))
+        .style("width", CARD_W + "px");
+
+      div.html(`
+        <img src="${getPhoto(person)}" alt="${person.name}">
+        <div>
+          <div class="name">${person.name}</div>
+        </div>
+      `);
+    }
+
+    function updateStats() {
+      const uniqueIds = new Set();
+      let maxDepth = 0;
+
+      function traverse(node, depth) {
+        node.people.forEach(p => uniqueIds.add(p.id));
+        if (depth > maxDepth) maxDepth = depth;
+        if (node.children) node.children.forEach(c => traverse(c, depth + 1));
+      }
+
+      traverse(FAMILY_DATA, 0);
+      document.getElementById('stats').textContent =
+        `${maxDepth + 1} รุ่น · ${uniqueIds.size} สมาชิก`;
+    }
+
+    function zoom(amount) {
+      svg.transition().duration(250).call(zoomHandler.scaleBy, 1 + amount);
+    }
+
+    function resetZoom() {
+      drawTree();
+    }
+
+    function centerNode(d) {
+      const container = document.getElementById('treeContainer');
+      const t = d3.zoomIdentity
+        .translate(container.clientWidth / 2 - d.x * 1.1, container.clientHeight / 2 - d.y * 1.1)
+        .scale(1.1);
+      svg.transition().duration(600).call(zoomHandler.transform, t);
+    }
+
+    function searchNode() {
+      const q = document.getElementById('searchInput').value.trim().toLowerCase();
+      d3.selectAll(".node-group").classed("dim highlight", false);
+
+      if (!q) return;
+
+      let found = null;
+      d3.selectAll(".node-group").each(function(d) {
+        const names = d.people.map(p => p.name).join(" ");
+        const match = names.toLowerCase().includes(q);
+        d3.select(this).classed("highlight", match).classed("dim", !match);
+        if (match && !found) found = d;
+      });
+
+      if (found) centerNode(found);
+    }
+
+    window.addEventListener('resize', () => {
+      if (document.getElementById('treePage').style.display === 'flex') drawTree();
+    });
+  </script>
+</body>
+</html>
