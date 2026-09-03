@@ -282,18 +282,19 @@ const TreeApp = (function () {
       .attr("class", "link")
       .attr("d", d => {
         let path = "";
+        const fromY = d.y + CARD_H / 2; // เริ่มจากกลางการ์ด / กลางเส้นสมรส
 
         if (d.type === 'single') {
-          path += childLine(d.x, d.y + CARD_H, d.children);
+          path += childLine(d.x, fromY, d.children);
         }
         else if (d.type === 'couple') {
           const midX = marriageMidX(d);
-          path += childLine(midX, d.y + CARD_H, d.children);
+          path += childLine(midX, fromY, d.children);
         }
         else if (d.type === 'multi') {
           d.spouses.forEach(s => {
             const midX = (d.anchorX + CARD_W + s.cardX) / 2;
-            path += childLine(midX, d.y + CARD_H, s.children);
+            path += childLine(midX, fromY, s.children);
           });
         }
 
@@ -392,6 +393,42 @@ const TreeApp = (function () {
   }
 
   /* ===== Geometry helpers ===== */
+  function sortCouple(people) {
+    return [...people].sort((a, b) => {
+      if (a.gender === 'ญ' && b.gender === 'ช') return -1;
+      if (a.gender === 'ช' && b.gender === 'ญ') return 1;
+      return 0;
+    });
+  }
+
+  // จุดเชื่อมต่อสำหรับลูก: ถ้าเป็น couple ให้ชี้ที่คนสายเลือด (people[0]) ไม่ใช่ตรงกลาง
+  function childTargetPoint(node) {
+    if (node.type === 'single') {
+      return { x: node.x, y: node.y + CARD_H / 2 };
+    }
+
+    if (node.type === 'couple') {
+      const sorted = sortCouple(node.people);
+      const main = node.people[0];
+      const mainIndex = sorted[0].id === main.id ? 0 : 1;
+
+      let x;
+      if (mainIndex === 0) {
+        x = node.x - COUPLE_GAP / 2 - CARD_W / 2; // ฝั่งซ้าย
+      } else {
+        x = node.x + COUPLE_GAP / 2 + CARD_W / 2; // ฝั่งขวา
+      }
+
+      return { x: x, y: node.y + CARD_H / 2 };
+    }
+
+    if (node.type === 'multi') {
+      return { x: node.anchorX + CARD_W / 2, y: node.y + CARD_H / 2 };
+    }
+
+    return { x: node.x, y: node.y + CARD_H / 2 };
+  }
+
   function marriageMidX(node) {
     if (node.type === 'couple') return node.x;
     if (node.type === 'multi') return node.anchorX + CARD_W / 2;
@@ -404,18 +441,11 @@ const TreeApp = (function () {
     let path = `M${fromX},${fromY} L${fromX},${midY} `;
 
     children.forEach(c => {
-      path += `M${fromX},${midY} L${c.x},${midY} L${c.x},${c.y} `;
+      const p = childTargetPoint(c);
+      path += `M${fromX},${midY} L${p.x},${midY} L${p.x},${p.y} `;
     });
 
     return path;
-  }
-
-  function sortCouple(people) {
-    return [...people].sort((a, b) => {
-      if (a.gender === 'ญ' && b.gender === 'ช') return -1;
-      if (a.gender === 'ช' && b.gender === 'ญ') return 1;
-      return 0;
-    });
   }
 
   /* ===== View control ===== */
