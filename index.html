@@ -1,23 +1,195 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Boonyaiwong Family Tree</title>
-  <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>สายใยตระกูล</title>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet" />
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    :root {
+      --green: #2f5d50;
+      --green-light: #e8f0ec;
+      --orange: #d97b58;
+      --cream: #f6f3ed;
+      --text: #2c3e33;
+      --male: #cfe2f3;
+      --female: #f4cccc;
+      --line: #8d6e63;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Sarabun", "Kanit", sans-serif; color: var(--text); background: #fff; overflow: hidden; }
+
+    #landing {
+      min-height: 100vh;
+      background: linear-gradient(rgba(47, 93, 80, 0.9), rgba(47, 93, 80, 0.88)),
+        url('https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=1400&q=80') center/cover;
+      color: white; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 2rem;
+    }
+    nav {
+      width: 100%; max-width: 960px; background: rgba(255,255,255,0.95);
+      border-radius: 999px; padding: 0.8rem 1.2rem;
+      display: flex; justify-content: space-between; align-items: center; color: var(--text); margin-bottom: 5rem;
+    }
+    .logo { display:flex; align-items:center; gap:0.8rem; font-weight:700; font-size:1.3rem; }
+    .logo-icon {
+      width: 44px; height: 44px; border-radius: 50%; background: var(--green);
+      color: white; display: grid; place-items: center; font-size: 1.1rem;
+    }
+    .menu {
+      width: 40px; height: 40px; border-radius: 50%; background: #f0ece3;
+      display: grid; place-items: center; cursor: pointer;
+    }
+    .badge {
+      background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3);
+      padding: 0.6rem 1.2rem; border-radius: 999px; font-size: 0.95rem; margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 3.2rem; line-height: 1.15; margin-bottom: 1.5rem; font-family: "Kanit", sans-serif; font-weight: 600; }
+    h1 span { color: #f0c2a8; }
+    .desc { max-width: 620px; font-size: 1.15rem; line-height: 1.7; margin-bottom: 2rem; opacity: 0.95; }
+    .btn {
+      display: inline-block; padding: 1rem 2.5rem; border-radius: 999px;
+      text-decoration: none; font-size: 1.1rem; font-weight: 600; transition: transform .2s; border: none; cursor: pointer;
+    }
+    .btn-primary { background: var(--orange); color: white; margin-bottom: 1rem; }
+    .btn-outline { background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.4); }
+    .btn:hover { transform: translateY(-2px); }
+
+    #treePage { height: 100vh; display: none; flex-direction: column; background: var(--cream); }
+    .tabs {
+      display: flex; gap: 0.5rem; padding: 1rem 1.2rem; background: var(--green);
+      color: white; overflow-x: auto;
+    }
+    .tab { padding: 0.5rem 1.1rem; border-radius: 999px; white-space: nowrap; cursor: pointer; opacity: 0.7; font-size: 0.95rem; }
+    .tab.active { background: rgba(255,255,255,0.2); opacity: 1; }
+    .toolbar {
+      padding: 0.8rem 1.2rem; background: white;
+      display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: center; border-bottom: 1px solid #e0e0e0;
+    }
+    .search { flex: 1; min-width: 180px; position: relative; }
+    .search input {
+      width: 100%; padding: 0.7rem 1rem 0.7rem 2.4rem; border: 1px solid #ddd;
+      border-radius: 999px; font-size: 0.95rem; outline: none; font-family: inherit;
+    }
+    .search::before { content: "🔍"; position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%); font-size: 0.85rem; }
+    .controls, .export { display: flex; gap: 0.5rem; }
+    .controls button, .export button {
+      height: 38px; border-radius: 999px; border: 1px solid #ddd;
+      background: white; cursor: pointer; font-size: 0.9rem; display: flex; align-items: center; gap: 0.3rem;
+      padding: 0 0.9rem; transition: all .2s; font-family: inherit;
+    }
+    .controls button:hover, .export button:hover { background: var(--green-light); border-color: var(--green); }
+    .export button { background: var(--green); color: white; border-color: var(--green); }
+    .export button:hover { background: #264e43; }
+    .info {
+      background: var(--cream); padding: 0.4rem 0.9rem; border-radius: 999px; font-weight: 600; font-size: 0.85rem;
+    }
+    #treeContainer { flex: 1; overflow: hidden; position: relative; background: var(--cream); }
+    #treeSvg { width: 100%; height: 100%; cursor: grab; display: block; }
+    #treeSvg:active { cursor: grabbing; }
+
+    .link { fill: none; stroke: var(--line); stroke-width: 2px; stroke-linejoin: round; stroke-linecap: round; }
+    .marriage-line { fill: none; stroke: var(--line); stroke-width: 2px; }
+    .node-group { cursor: pointer; }
+    .person-bg {
+      stroke: rgba(0,0,0,0.1); stroke-width: 1;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+    }
+    .person-name {
+      font-size: 13px; font-weight: 600; fill: #222; font-family: "Sarabun", sans-serif;
+      pointer-events: none; dominant-baseline: central;
+    }
+    .heart { fill: #e53935; font-size: 12px; pointer-events: none; }
+    .node-group.highlight .person-bg { stroke: var(--orange); stroke-width: 3px; }
+    .dim { opacity: 0.18; }
+  </style>
 </head>
 <body>
-  <header class="header">
-    <h1>บุญใหญ่วงศ์</h1>
-    <div class="toolbar">
-      <input type="text" id="searchInput" placeholder="ค้นหาชื่อ...">
-      <button id="expandAll">ขยายทั้งหมด</button>
-      <button id="collapseAll">ย่อทั้งหมด</button>
+
+  <section id="landing">
+    <nav>
+      <div class="logo">
+        <div class="logo-icon">สย</div>
+        <div>สายใยตระกูล</div>
+      </div>
+      <div class="menu">☰</div>
+    </nav>
+    <div class="badge">พื้นที่แห่งความทรงจำของทุกคนในครอบครัว</div>
+    <h1>เมื่อทุกเรื่องราว<br><span>เชื่อมถึงกัน</span></h1>
+    <p class="desc">
+      “สายใยตระกูล” รวบรวมรายชื่อ รูปภาพ และความสัมพันธ์ของครอบครัวใหญ่หลายสาขา
+      ให้ลูกหลานมองเห็นว่าเราเดินทางมาจากไหน และยังเชื่อมโยงถึงกันอย่างไร
+    </p>
+    <button class="btn btn-primary" onclick="showTree()">เปิดดูผังครอบครัว ›</button>
+    <br>
+    <button class="btn btn-outline" onclick="showTree()">อ่านเรื่องราวของเรา</button>
+  </section>
+
+  <section id="treePage">
+    <div class="tabs">
+      <div class="tab active">ทั้งหมด</div>
+      <div class="tab">สายเหนือ</div>
+      <div class="tab">สายกลาง</div>
+      <div class="tab">สายใต้</div>
     </div>
-  </header>
 
-  <main id="treeContainer"></main>
+    <div class="toolbar">
+      <div class="search">
+        <input type="text" id="searchInput" placeholder="ค้นหาชื่อหรือนามสกุล" onkeyup="searchNode()" />
+      </div>
+      <div class="controls">
+        <button onclick="TreeApp.zoom(-0.2)" title="ซูมออก">−</button>
+        <button onclick="TreeApp.resetZoom()" title="รีเซ็ต">⟲</button>
+        <button onclick="TreeApp.zoom(0.2)" title="ซูมเข้า">+</button>
+      </div>
+      <div class="export">
+        <button onclick="TreeApp.exportImage('png')" title="บันทึกเป็นภาพ PNG">🖼️ PNG</button>
+      </div>
+      <div class="info" id="stats">กำลังโหลด...</div>
+    </div>
 
-  <script type="module" src="js/app.js"></script>
+    <div id="treeContainer"></div>
+  </section>
+
+  <script src="data.js"></script>
+  <script src="tree.js"></script>
+
+<script>
+  function showTree() {
+    document.getElementById('landing').style.display = 'none';
+    document.getElementById('treePage').style.display = 'flex';
+
+    // รอให้ layout เสร็จก่อนวาด บนมือถือบางเครื่อง flex คำนวณช้า
+    setTimeout(() => {
+      try {
+        if (typeof familyRawData === 'undefined') {
+          alert('ไม่พบข้อมูล familyRawData กรุณาตรวจสอบไฟล์ data.js');
+          return;
+        }
+        TreeApp.init('treeContainer', familyRawData, ['1']);
+      } catch (err) {
+        console.error(err);
+        alert('เกิดข้อผิดพลาด: ' + err.message);
+      }
+    }, 100);
+  }
+
+  function searchNode() {
+    const q = document.getElementById('searchInput').value;
+    TreeApp.search(q);
+  }
+
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    if (document.getElementById('treePage').style.display === 'flex') {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        TreeApp.init('treeContainer', familyRawData, ['1']);
+      }, 200);
+    }
+  });
+</script>
 </body>
 </html>
