@@ -6,6 +6,8 @@
   <title>สายใยตระกูล</title>
   <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet" />
   <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     :root {
       --green: #2f5d50;
@@ -66,18 +68,21 @@
       padding: 0.8rem 1.2rem; background: white;
       display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: center; border-bottom: 1px solid #e0e0e0;
     }
-    .search { flex: 1; min-width: 200px; position: relative; }
+    .search { flex: 1; min-width: 180px; position: relative; }
     .search input {
       width: 100%; padding: 0.7rem 1rem 0.7rem 2.4rem; border: 1px solid #ddd;
       border-radius: 999px; font-size: 0.95rem; outline: none; font-family: inherit;
     }
     .search::before { content: "🔍"; position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%); font-size: 0.85rem; }
-    .controls { display: flex; gap: 0.5rem; }
-    .controls button {
-      width: 38px; height: 38px; border-radius: 50%; border: 1px solid #ddd;
-      background: white; cursor: pointer; font-size: 1.1rem; display: grid; place-items: center; transition: all .2s;
+    .controls, .export { display: flex; gap: 0.5rem; }
+    .controls button, .export button {
+      height: 38px; border-radius: 999px; border: 1px solid #ddd;
+      background: white; cursor: pointer; font-size: 0.9rem; display: flex; align-items: center; gap: 0.3rem;
+      padding: 0 0.9rem; transition: all .2s; font-family: inherit;
     }
-    .controls button:hover { background: var(--green-light); border-color: var(--green); }
+    .controls button:hover, .export button:hover { background: var(--green-light); border-color: var(--green); }
+    .export button { background: var(--green); color: white; border-color: var(--green); }
+    .export button:hover { background: #264e43; }
     .info {
       background: var(--cream); padding: 0.4rem 0.9rem; border-radius: 999px; font-weight: 600; font-size: 0.85rem;
     }
@@ -139,6 +144,9 @@
         <button onclick="TreeApp.resetZoom()" title="รีเซ็ต">⟲</button>
         <button onclick="TreeApp.zoom(0.2)" title="ซูมเข้า">+</button>
       </div>
+      <div class="export">
+        <button onclick="TreeApp.exportImage('png')" title="บันทึกเป็นภาพ PNG">🖼️ PNG</button>
+        </div>
       <div class="info" id="stats">กำลังโหลด...</div>
     </div>
 
