@@ -1,5 +1,5 @@
 // data.js - ข้อมูลสมาชิกครอบครัวแบบ flat array
-const familyRawData = [
+export const familyRawData = [
   { id: "1", name: "นก", father: "", mother: "", spouse: ["2"], gender: "ช", photo: "" },
   { id: "2", name: "สวัสดิ์", father: "", mother: "", spouse: ["1"], gender: "ญ", photo: "" },
   { id: "3", name: "คำเป้า", father: "1", mother: "2", spouse: ["4"], gender: "ญ", photo: "" },
