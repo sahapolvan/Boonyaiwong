@@ -140,12 +140,12 @@
         <input type="text" id="searchInput" placeholder="ค้นหาชื่อหรือนามสกุล" onkeyup="searchNode()" />
       </div>
       <div class="controls">
-        <button onclick="TreeApp.zoom(-0.2)" title="ซูมออก">−</button>
-        <button onclick="TreeApp.resetZoom()" title="รีเซ็ต">⟲</button>
-        <button onclick="TreeApp.zoom(0.2)" title="ซูมเข้า">+</button>
+        <button onclick="TreeExtra.zoom(-0.2)" title="ซูมออก">−</button>
+        <button onclick="TreeExtra.resetZoom()" title="รีเซ็ต">⟲</button>
+        <button onclick="TreeExtra.zoom(0.2)" title="ซูมเข้า">+</button>
       </div>
       <div class="export">
-        <button onclick="TreeApp.exportImage('png')" title="บันทึกเป็นภาพ PNG">🖼️ PNG</button>
+        <button onclick="TreeExtra.exportImage('png')" title="บันทึกเป็นภาพ PNG">🖼️ PNG</button>
       </div>
       <div class="info" id="stats">กำลังโหลด...</div>
     </div>
@@ -158,38 +158,64 @@
 
 <script>
   function showTree() {
-    document.getElementById('landing').style.display = 'none';
-    document.getElementById('treePage').style.display = 'flex';
+  document.getElementById('landing').style.display = 'none';
+  document.getElementById('treePage').style.display = 'flex';
 
-    // รอให้ layout เสร็จก่อนวาด บนมือถือบางเครื่อง flex คำนวณช้า
-    setTimeout(() => {
-      try {
-        if (typeof familyRawData === 'undefined') {
-          alert('ไม่พบข้อมูล familyRawData กรุณาตรวจสอบไฟล์ data.js');
-          return;
-        }
-        TreeApp.init('treeContainer', familyRawData, ['1']);
-      } catch (err) {
-        console.error(err);
-        alert('เกิดข้อผิดพลาด: ' + err.message);
+  setTimeout(() => {
+    try {
+      if (typeof familyRawData === 'undefined') {
+        alert('ไม่พบข้อมูล familyRawData กรุณาตรวจสอบไฟล์ data.js');
+        return;
       }
-    }, 100);
-  }
 
-  function searchNode() {
-    const q = document.getElementById('searchInput').value;
-    TreeApp.search(q);
-  }
+      TreeExtra.init(
+        'treeContainer',
+        familyRawData,
+        ['1']
+      );
 
-  let resizeTimer;
-  window.addEventListener('resize', () => {
-    if (document.getElementById('treePage').style.display === 'flex') {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => {
-        TreeApp.init('treeContainer', familyRawData, ['1']);
-      }, 200);
+    } catch (err) {
+      console.error(err);
+      alert('เกิดข้อผิดพลาด: ' + err.message);
     }
-  });
+  }, 100);
+}
+
+
+function searchNode() {
+  const q =
+    document.getElementById('searchInput').value;
+
+  TreeExtra.search(q);
+}
+
+
+let resizeTimer;
+
+window.addEventListener('resize', () => {
+
+  if (
+    document.getElementById(
+      'treePage'
+    ).style.display === 'flex'
+  ) {
+
+    clearTimeout(resizeTimer);
+
+    resizeTimer =
+      setTimeout(() => {
+
+        TreeExtra.init(
+          'treeContainer',
+          familyRawData,
+          ['1']
+        );
+
+      }, 200);
+
+  }
+
+});
 </script>
 </body>
 </html>
