@@ -1,142 +1,448 @@
 const express = require("express");
-const fs = require("fs");
-const path = require("path");
-const vm = require("vm");
 
 const app = express();
-const PORT = 3000;
 
-const DATA_FILE = path.join(__dirname, "data.js");
-const BACKUP_FILE = path.join(__dirname, "data.backup.js");
+const PORT = process.env.PORT || 3000;
+
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const GITHUB_OWNER = process.env.GITHUB_OWNER || "sahpvan";
+const GITHUB_REPO = process.env.GITHUB_REPO || "Boonyaiwong";
+const GITHUB_BRANCH = process.env.GITHUB_BRANCH || "main";
+const GITHUB_FILE = "data.js";
+
+const ALLOWED_ORIGIN = "https://sahapvan.github.io";
 
 app.use(express.json({ limit: "10mb" }));
 
 // ======================================================
-// อ่านข้อมูลจาก data.js
+// CORS
 // ======================================================
-function readFamilyData() {
-    if (!fs.existsSync(DATA_FILE)) {
-        throw new Error("ไม่พบไฟล์ data.js");
+
+app.use((req, res, next) => {
+    const origin = req.headers.origin;
+
+    if (origin === ALLOWED_ORIGIN) {
+        res.setHeader("Access-Control-Allow-Origin", origin);
     }
 
-    const code = fs.readFileSync(DATA_FILE, "utf8");
+    res.setHeader(
+        "Access-Control-Allow-Methods",
+        "GET, PUT, OPTIONS"
+    );
 
-    const sandbox = {};
+    res.setHeader(
+        "Access-Control-Allow-Headers",
+        "Content-Type"
+    );
 
-    try {
-        vm.runInNewContext(
-            code + "\nthis.__familyRawData = familyRawData;",
-            sandbox
-        );
-    } catch (error) {
-        throw new Error(
-            "อ่าน data.js ไม่สำเร็จ: " + error.message
-        );
+    if (req.method === "OPTIONS") {
+        return res.sendStatus(204);
     }
 
-    if (!Array.isArray(sandbox.__familyRawData)) {
-        throw new Error(
-            "ไม่พบ familyRawData หรือ familyRawData ไม่ใช่ Array"
-        );
+    next();
+});
+
+// ======================================================
+// ตรวจสอบ Environment
+// ======================================================
+
+function checkConfig() {
+    if (!GITHUB_TOKEN) {
+        throw new Error("ยังไม่ได้ตั้งค่า GITHUB_TOKEN");
     }
 
-    return sandbox.__familyRawData;
+    if (!GITHUB_OWNER) {
+        throw new Error("ยังไม่ได้ตั้งค่า GITHUB_OWNER");
+    }
+
+    if (!GITHUB_REPO) {
+        throw new Error("ยังไม่ได้ตั้งค่า GITHUB_REPO");
+    }
+
+    if (!GITHUB_BRANCH) {
+        throw new Error("ยังไม่ได้ตั้งค่า GITHUB_BRANCH");
+    }
 }
 
 // ======================================================
-// บันทึกกลับลง data.js
+// GitHub API
 // ======================================================
-function writeFamilyData(data) {
 
-    // สำรองข้อมูลเดิม
-    if (fs.existsSync(DATA_FILE)) {
-        fs.copyFileSync(DATA_FILE, BACKUP_FILE);
-    }
-
-    const content =
-`// data.js - ข้อมูลสมาชิกครอบครัวแบบ flat array
-
-const familyRawData = ${JSON.stringify(data, null, 2)};
-`;
-
-    const tempFile = DATA_FILE + ".tmp";
-
-    fs.writeFileSync(
-        tempFile,
-        content,
-        "utf8"
-    );
-
-    fs.renameSync(
-        tempFile,
-        DATA_FILE
-    );
-}
-
-// ======================================================
-// แปลงข้อมูลให้ตรงกับโครงสร้างเดิม
-// ======================================================
-function normalizePerson(data) {
+function githubHeaders() {
+    checkConfig();
 
     return {
-        id: String(data.id),
+        "Authorization": `Bearer ${GITHUB_TOKEN}`,
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "Boonyaiwong-Family-API",
+        "Content-Type": "application/json"
+    };
+}
 
-        name: String(data.name || ""),
+function githubFileUrl() {
+    return `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${GITHUB_FILE}?ref=${encodeURIComponent(GITHUB_BRANCH)}`;
+}
 
-        father:
-            data.father === null ||
-            data.father === undefined
-                ? ""
-                : String(data.father),
+// ======================================================
+// อ่าน data.js จาก GitHub
+// ======================================================
 
-        mother:
-            data.mother === null ||
-            data.mother === undefined
-                ? ""
-                : String(data.mother),
+async function getGithubData() {
 
-        spouse: Array.isArray(data.spouse)
-            ? data.spouse.map(String)
-            : [],
+    const response = await fetch(
+        githubFileUrl(),
+        {
+            method: "GET",
+            headers: githubHeaders()
+        }
+    );
 
-        gender:
-            data.gender === "ญ"
-                ? "ญ"
-                : "ช",
+    const result = await response.json();
 
-        photo:
-            data.photo === null ||
-            data.photo === undefined
-                ? ""
-                : String(data.photo)
+    if (!response.ok) {
+        throw new Error(
+            `GitHub GET ${response.status}: ${
+                result.message || "ไม่สามารถอ่าน data.js ได้"
+            }`
+        );
+    }
+
+    if (!result.content) {
+        throw new Error("GitHub ไม่ส่งข้อมูล content ของ data.js กลับมา");
+    }
+
+    const content = Buffer
+        .from(result.content.replace(/\n/g, ""), "base64")
+        .toString("utf8");
+
+    const data = parseFamilyRawData(content);
+
+    return {
+        data,
+        sha: result.sha,
+        content
     };
 }
 
 // ======================================================
-// ตรวจสอบระบบ
+// แปลง data.js → familyRawData
 // ======================================================
+
+function parseFamilyRawData(content) {
+
+    const match = content.match(
+        /const\s+familyRawData\s*=\s*(\[[\s\S]*?\]);/
+    );
+
+    if (!match) {
+        throw new Error(
+            "ไม่พบ const familyRawData = [...] ใน data.js"
+        );
+    }
+
+    let data;
+
+    try {
+        data = JSON.parse(match[1]);
+    } catch (error) {
+        throw new Error(
+            "ไม่สามารถแปลง familyRawData เป็น JSON ได้: " +
+            error.message
+        );
+    }
+
+    if (!Array.isArray(data)) {
+        throw new Error(
+            "familyRawData ไม่ใช่ Array"
+        );
+    }
+
+    return data;
+}
+
+// ======================================================
+// สร้างเนื้อหา data.js
+// ======================================================
+
+function createDataFile(data) {
+
+    return `// data.js - ข้อมูลสมาชิกครอบครัวแบบ flat array
+
+const familyRawData = ${JSON.stringify(data, null, 2)};
+`;
+}
+
+// ======================================================
+// ตรวจสอบข้อมูลบุคคล
+// ======================================================
+
+function normalizePerson(person, currentPerson) {
+
+    const result = {
+        id: String(
+            person.id ??
+            currentPerson.id
+        ),
+
+        name: String(
+            person.name ??
+            ""
+        ).trim(),
+
+        father:
+            person.father === null ||
+            person.father === undefined
+                ? ""
+                : String(person.father).trim(),
+
+        mother:
+            person.mother === null ||
+            person.mother === undefined
+                ? ""
+                : String(person.mother).trim(),
+
+        spouse:
+            Array.isArray(person.spouse)
+                ? person.spouse.map(String)
+                : [],
+
+        gender:
+            person.gender === "ญ"
+                ? "ญ"
+                : "ช",
+
+        photo:
+            person.photo === null ||
+            person.photo === undefined
+                ? ""
+                : String(person.photo)
+    };
+
+    // ห้าม ID ตัวเองเป็นคู่สมรส
+    result.spouse = [
+        ...new Set(
+            result.spouse.filter(
+                id => id !== result.id
+            )
+        )
+    ];
+
+    return result;
+}
+
+// ======================================================
+// ตรวจสอบความถูกต้องของข้อมูล
+// ======================================================
+
+function validatePerson(person, data) {
+
+    if (!person.name) {
+        throw new Error("กรุณาระบุชื่อ");
+    }
+
+    const id = String(person.id);
+
+    if (person.father === id) {
+        throw new Error("บุคคลไม่สามารถเป็นบิดาของตัวเองได้");
+    }
+
+    if (person.mother === id) {
+        throw new Error("บุคคลไม่สามารถเป็นมารดาของตัวเองได้");
+    }
+
+    const ids = new Set(
+        data.map(p => String(p.id))
+    );
+
+    if (
+        person.father &&
+        !ids.has(String(person.father))
+    ) {
+        throw new Error(
+            `ไม่พบข้อมูลบิดา ID ${person.father}`
+        );
+    }
+
+    if (
+        person.mother &&
+        !ids.has(String(person.mother))
+    ) {
+        throw new Error(
+            `ไม่พบข้อมูลมารดา ID ${person.mother}`
+        );
+    }
+
+    for (const spouseId of person.spouse) {
+
+        if (!ids.has(String(spouseId))) {
+            throw new Error(
+                `ไม่พบข้อมูลคู่สมรส ID ${spouseId}`
+            );
+        }
+
+        if (String(spouseId) === id) {
+            throw new Error(
+                "บุคคลไม่สามารถเป็นคู่สมรสของตัวเองได้"
+            );
+        }
+    }
+}
+
+// ======================================================
+// ทำให้ spouse เชื่อมกันสองทาง
+// ======================================================
+
+function syncSpouses(data, personId, newSpouses) {
+
+    const id = String(personId);
+
+    // เอา ID ออกจากคู่สมรสเดิมทั้งหมด
+    for (const person of data) {
+
+        if (!Array.isArray(person.spouse)) {
+            person.spouse = [];
+        }
+
+        person.spouse = person.spouse
+            .map(String)
+            .filter(spouseId => spouseId !== id);
+    }
+
+    // ใส่คู่สมรสใหม่
+    const currentPerson = data.find(
+        p => String(p.id) === id
+    );
+
+    if (!currentPerson) {
+        throw new Error(
+            `ไม่พบสมาชิก ID ${id}`
+        );
+    }
+
+    currentPerson.spouse = [
+        ...new Set(
+            newSpouses
+                .map(String)
+                .filter(spouseId => spouseId !== id)
+        )
+    ];
+
+    // เพิ่มกลับไปยังคู่สมรส
+    for (const spouseId of currentPerson.spouse) {
+
+        const spouse = data.find(
+            p => String(p.id) === spouseId
+        );
+
+        if (!spouse) {
+            continue;
+        }
+
+        if (!Array.isArray(spouse.spouse)) {
+            spouse.spouse = [];
+        }
+
+        spouse.spouse = spouse.spouse.map(String);
+
+        if (!spouse.spouse.includes(id)) {
+            spouse.spouse.push(id);
+        }
+    }
+}
+
+// ======================================================
+// เขียน data.js กลับ GitHub
+// ======================================================
+
+async function updateGithubData(data, sha) {
+
+    const content = createDataFile(data);
+
+    const encoded = Buffer
+        .from(content, "utf8")
+        .toString("base64");
+
+    const url =
+        `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${GITHUB_FILE}`;
+
+    const response = await fetch(
+        url,
+        {
+            method: "PUT",
+
+            headers: githubHeaders(),
+
+            body: JSON.stringify({
+                message: "Update family data from Family Tree Manager",
+                content: encoded,
+                sha: sha,
+                branch: GITHUB_BRANCH
+            })
+        }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok) {
+
+        if (response.status === 409) {
+            throw new Error(
+                "ข้อมูลใน GitHub ถูกแก้ไขพร้อมกัน กรุณาลองบันทึกอีกครั้ง"
+            );
+        }
+
+        throw new Error(
+            `GitHub PUT ${response.status}: ${
+                result.message || "บันทึก data.js ไม่สำเร็จ"
+            }`
+        );
+    }
+
+    return result;
+}
+
+// ======================================================
+// HEALTH
+// ======================================================
+
 app.get("/api/health", (req, res) => {
-
-    res.json({
-        success: true,
-        message: "Family Tree Server ทำงานปกติ"
-    });
-
-});
-
-// ======================================================
-// GET - อ่านสมาชิกทั้งหมด
-// ======================================================
-app.get("/api/family", (req, res) => {
 
     try {
 
-        const data = readFamilyData();
+        checkConfig();
 
         res.json({
             success: true,
-            count: data.length,
-            data: data
+            message: "Family Tree Server ทำงานปกติ",
+            repository: `${GITHUB_OWNER}/${GITHUB_REPO}`,
+            branch: GITHUB_BRANCH,
+            file: GITHUB_FILE
+        });
+
+    } catch (error) {
+
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+// ======================================================
+// GET ข้อมูลทั้งหมด
+// ======================================================
+
+app.get("/api/family", async (req, res) => {
+
+    try {
+
+        const result = await getGithubData();
+
+        res.json({
+            success: true,
+            count: result.data.length,
+            data: result.data
         });
 
     } catch (error) {
@@ -147,21 +453,20 @@ app.get("/api/family", (req, res) => {
             success: false,
             message: error.message
         });
-
     }
-
 });
 
 // ======================================================
-// GET - สมาชิกคนเดียว
+// GET สมาชิกตาม ID
 // ======================================================
-app.get("/api/family/:id", (req, res) => {
+
+app.get("/api/family/:id", async (req, res) => {
 
     try {
 
-        const data = readFamilyData();
+        const result = await getGithubData();
 
-        const person = data.find(
+        const person = result.data.find(
             p => String(p.id) === String(req.params.id)
         );
 
@@ -169,98 +474,12 @@ app.get("/api/family/:id", (req, res) => {
 
             return res.status(404).json({
                 success: false,
-                message: "ไม่พบสมาชิก"
+                message: "ไม่พบสมาชิก ID " + req.params.id
             });
-
         }
 
         res.json({
             success: true,
-            data: person
-        });
-
-    } catch (error) {
-
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
-
-    }
-
-});
-
-// ======================================================
-// POST - เพิ่มสมาชิก
-// ======================================================
-app.post("/api/family", (req, res) => {
-
-    try {
-
-        const data = readFamilyData();
-
-        const body = req.body;
-
-        if (!body.name || !String(body.name).trim()) {
-
-            return res.status(400).json({
-                success: false,
-                message: "กรุณาระบุชื่อ"
-            });
-
-        }
-
-        // หา ID ใหม่
-        let maxId = 0;
-
-        data.forEach(person => {
-
-            const id = Number(person.id);
-
-            if (!isNaN(id) && id > maxId) {
-                maxId = id;
-            }
-
-        });
-
-        const newId = String(maxId + 1);
-
-        const person = normalizePerson({
-            ...body,
-            id: newId
-        });
-
-        person.spouse =
-            person.spouse.filter(
-                id => id !== newId
-            );
-
-        data.push(person);
-
-        // เชื่อมคู่สมรสทั้งสองฝั่ง
-        person.spouse.forEach(spouseId => {
-
-            const spouse = data.find(
-                p => String(p.id) === String(spouseId)
-            );
-
-            if (!spouse) return;
-
-            if (!Array.isArray(spouse.spouse)) {
-                spouse.spouse = [];
-            }
-
-            if (!spouse.spouse.includes(newId)) {
-                spouse.spouse.push(newId);
-            }
-
-        });
-
-        writeFamilyData(data);
-
-        res.json({
-            success: true,
-            message: "เพิ่มสมาชิกเรียบร้อย",
             data: person
         });
 
@@ -272,21 +491,23 @@ app.post("/api/family", (req, res) => {
             success: false,
             message: error.message
         });
-
     }
-
 });
 
 // ======================================================
-// PUT - แก้ไขสมาชิก
+// PUT แก้ไขสมาชิก
 // ======================================================
-app.put("/api/family/:id", (req, res) => {
+
+app.put("/api/family/:id", async (req, res) => {
 
     try {
 
         const id = String(req.params.id);
 
-        const data = readFamilyData();
+        // อ่าน GitHub ล่าสุดทุกครั้งก่อนแก้
+        const result = await getGithubData();
+
+        const data = result.data;
 
         const index = data.findIndex(
             p => String(p.id) === id
@@ -298,218 +519,128 @@ app.put("/api/family/:id", (req, res) => {
                 success: false,
                 message: "ไม่พบสมาชิก ID " + id
             });
-
         }
 
         const oldPerson = data[index];
 
-        const oldSpouses =
-            Array.isArray(oldPerson.spouse)
-                ? oldPerson.spouse.map(String)
-                : [];
+        const newPerson = normalizePerson(
+            {
+                ...oldPerson,
+                ...req.body,
+                id: id
+            },
+            oldPerson
+        );
 
-        const newPerson = normalizePerson({
-            ...oldPerson,
-            ...req.body,
-            id: id
-        });
+        validatePerson(
+            newPerson,
+            data
+        );
 
-        // ป้องกันการเลือกตัวเองเป็นคู่สมรส
-        newPerson.spouse =
-            [...new Set(
-                newPerson.spouse
-                    .map(String)
-                    .filter(x => x !== id)
-            )];
-
-        const newSpouses = newPerson.spouse;
-
-        // ----------------------------------------------
-        // ลบความสัมพันธ์คู่สมรสเก่า
-        // ----------------------------------------------
-        oldSpouses.forEach(spouseId => {
-
-            if (!newSpouses.includes(spouseId)) {
-
-                const spouse = data.find(
-                    p => String(p.id) === spouseId
-                );
-
-                if (spouse && Array.isArray(spouse.spouse)) {
-
-                    spouse.spouse =
-                        spouse.spouse
-                            .map(String)
-                            .filter(x => x !== id);
-
-                }
-
-            }
-
-        });
-
-        // ----------------------------------------------
-        // เพิ่มความสัมพันธ์คู่สมรสใหม่
-        // ----------------------------------------------
-        newSpouses.forEach(spouseId => {
-
-            const spouse = data.find(
-                p => String(p.id) === spouseId
-            );
-
-            if (!spouse) return;
-
-            if (!Array.isArray(spouse.spouse)) {
-                spouse.spouse = [];
-            }
-
-            spouse.spouse =
-                spouse.spouse.map(String);
-
-            if (!spouse.spouse.includes(id)) {
-                spouse.spouse.push(id);
-            }
-
-        });
-
+        // แทนข้อมูลบุคคล
         data[index] = newPerson;
 
-        writeFamilyData(data);
-
-        res.json({
-            success: true,
-            message: "แก้ไขข้อมูลเรียบร้อย",
-            data: newPerson
-        });
-
-    } catch (error) {
-
-        console.error(error);
-
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
-
-    }
-
-});
-
-// ======================================================
-// DELETE - ลบสมาชิก
-// ======================================================
-app.delete("/api/family/:id", (req, res) => {
-
-    try {
-
-        const id = String(req.params.id);
-
-        let data = readFamilyData();
-
-        const exists = data.some(
-            p => String(p.id) === id
+        // จัดการคู่สมรสให้เชื่อมสองทาง
+        syncSpouses(
+            data,
+            id,
+            newPerson.spouse
         );
 
-        if (!exists) {
-
-            return res.status(404).json({
-                success: false,
-                message: "ไม่พบสมาชิก ID " + id
-            });
-
-        }
-
-        // ลบ ID ออกจากความสัมพันธ์ของทุกคน
-        data = data.map(person => {
-
-            const p = {
-                ...person
-            };
-
-            if (Array.isArray(p.spouse)) {
-
-                p.spouse =
-                    p.spouse
-                        .map(String)
-                        .filter(x => x !== id);
-
-            }
-
-            if (String(p.father) === id) {
-                p.father = "";
-            }
-
-            if (String(p.mother) === id) {
-                p.mother = "";
-            }
-
-            return p;
-
-        });
-
-        // ลบตัวสมาชิก
-        data = data.filter(
-            p => String(p.id) !== id
-        );
-
-        writeFamilyData(data);
-
-        res.json({
-            success: true,
-            message: "ลบสมาชิกเรียบร้อย"
-        });
-
-    } catch (error) {
-
-        console.error(error);
-
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
-
-    }
-
-});
-
-// ======================================================
-// ปิด Cache ของ data.js
-// ======================================================
-app.use(express.static(__dirname, {
-
-    setHeaders: (res, filePath) => {
-
-        if (filePath.endsWith("data.js")) {
-
-            res.setHeader(
-                "Cache-Control",
-                "no-store, no-cache, must-revalidate, proxy-revalidate"
+        // เขียนกลับ GitHub
+        const githubResult =
+            await updateGithubData(
+                data,
+                result.sha
             );
 
-        }
+        res.json({
+            success: true,
+            message: "แก้ไขข้อมูลและบันทึกลง GitHub เรียบร้อย",
+            data: data[index],
+            commit: {
+                sha: githubResult.commit?.sha || "",
+                url: githubResult.commit?.html_url || ""
+            }
+        });
 
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
     }
-
-}));
+});
 
 // ======================================================
-// เริ่ม Server
+// POST / DELETE ปิดไว้
+// เพราะ crud.html มีหน้าที่แก้ไขข้อมูลเท่านั้น
 // ======================================================
-app.listen(PORT, () => {
+
+app.post("/api/family", (req, res) => {
+
+    res.status(405).json({
+        success: false,
+        message: "ระบบนี้ไม่รองรับการเพิ่มสมาชิก"
+    });
+});
+
+app.delete("/api/family/:id", (req, res) => {
+
+    res.status(405).json({
+        success: false,
+        message: "ระบบนี้ไม่รองรับการลบสมาชิก"
+    });
+});
+
+// ======================================================
+// Root
+// ======================================================
+
+app.get("/", (req, res) => {
+
+    res.json({
+        success: true,
+        name: "Boonyaiwong Family Tree API",
+        status: "online"
+    });
+});
+
+// ======================================================
+// Error handler
+// ======================================================
+
+app.use((err, req, res, next) => {
+
+    console.error(err);
+
+    res.status(500).json({
+        success: false,
+        message: err.message || "Server Error"
+    });
+});
+
+// ======================================================
+// START
+// ======================================================
+
+app.listen(PORT, "0.0.0.0", () => {
 
     console.log("");
     console.log("==========================================");
-    console.log("       FAMILY TREE SERVER");
+    console.log("       BOONYAIWONG FAMILY API");
     console.log("==========================================");
     console.log("");
-    console.log("Server  : http://localhost:" + PORT);
-    console.log("Manager : http://localhost:" + PORT + "/manager.html");
-    console.log("API     : http://localhost:" + PORT + "/api/family");
+    console.log("Port       :", PORT);
+    console.log("Repository :", `${GITHUB_OWNER}/${GITHUB_REPO}`);
+    console.log("Branch     :", GITHUB_BRANCH);
+    console.log("File       :", GITHUB_FILE);
     console.log("");
-    console.log("Data    : " + DATA_FILE);
-    console.log("Backup  : " + BACKUP_FILE);
+    console.log("API        : /api/family");
+    console.log("Health     : /api/health");
     console.log("");
-    console.log("จำนวนข้อมูลที่อยู่ใน data.js จะอ่านจาก");
-    console.log("familyRawData โดยตรง");
-    console.log("");
+    console.log("==========================================");
 });
