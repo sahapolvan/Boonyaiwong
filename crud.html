@@ -1,8 +1,11 @@
-<!DOCTYPE html><html lang="th">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Family Member Manager</title><script src="data.js"></script><style>
+<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><meta
+name="viewport"
+content="width=device-width, initial-scale=1.0"
+
+«»
+
+<title>Family Member Manager</title><style>
+
 @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap');
 
 * {
@@ -24,488 +27,1107 @@
   --female: #f472b6;
   --danger: #ef4444;
   --success: #22c55e;
+  --warning: #f59e0b;
 }
 
 body {
+
   font-family: 'Kanit', sans-serif;
+
   background:
-    linear-gradient(135deg, var(--bg-1) 0%, #312e81 50%, var(--bg-2) 100%);
+    linear-gradient(
+      135deg,
+      var(--bg-1) 0%,
+      #312e81 50%,
+      var(--bg-2) 100%
+    );
+
   min-height: 100vh;
+
   color: var(--text);
+
 }
 
 .app {
-  max-width: 900px;
+
+  max-width: 1000px;
+
   margin: 0 auto;
-  padding: 40px 24px;
+
+  padding: 30px 20px 60px;
+
 }
 
-/* =========================
+
+/* =========================================================
    TOP BAR
-========================= */
+========================================================= */
 
 .top-bar {
+
   display: flex;
-  justify-content: flex-end;
-  margin-bottom: 18px;
+
+  justify-content: space-between;
+
+  align-items: center;
+
+  margin-bottom: 22px;
+
+}
+
+.status {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 8px;
+
+  color: var(--muted);
+
+  font-size: 13px;
+
+}
+
+.status-dot {
+
+  width: 9px;
+
+  height: 9px;
+
+  border-radius: 50%;
+
+  background: var(--success);
+
+  box-shadow:
+    0 0 10px var(--success);
+
+}
+
+.status-dot.error {
+
+  background: var(--danger);
+
+  box-shadow:
+    0 0 10px var(--danger);
+
 }
 
 .home-btn {
+
   display: inline-flex;
+
   align-items: center;
+
   gap: 8px;
+
   padding: 10px 16px;
+
   border-radius: 12px;
+
   border: 1px solid var(--border);
-  background: rgba(255,255,255,0.07);
+
+  background:
+    rgba(255,255,255,0.07);
+
   color: var(--text);
+
   text-decoration: none;
+
   font-family: inherit;
+
   font-size: 14px;
+
   transition: 0.2s;
+
   backdrop-filter: blur(10px);
+
 }
 
 .home-btn:hover {
-  background: rgba(255,255,255,0.14);
-  border-color: var(--accent);
-  color: var(--accent);
-  transform: translateY(-1px);
+
+  background:
+    rgba(255,255,255,0.14);
+
+  border-color:
+    var(--accent);
+
+  color:
+    var(--accent);
+
 }
 
-/* =========================
+
+/* =========================================================
    HEADER
-========================= */
+========================================================= */
 
 header {
+
   text-align: center;
-  margin-bottom: 36px;
+
+  margin-bottom: 30px;
+
 }
 
 .logo {
+
   font-size: 36px;
+
   font-weight: 600;
-  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+
+  background:
+    linear-gradient(
+      90deg,
+      var(--accent),
+      var(--accent-2)
+    );
+
   -webkit-background-clip: text;
+
   -webkit-text-fill-color: transparent;
+
   margin-bottom: 8px;
+
 }
 
 .subtitle {
+
   color: var(--muted);
+
   font-size: 16px;
+
 }
 
-/* =========================
+
+/* =========================================================
    STATS
-========================= */
+========================================================= */
 
 .stats {
+
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+
+  grid-template-columns:
+    repeat(3, 1fr);
+
   gap: 16px;
-  margin-bottom: 28px;
+
+  margin-bottom: 24px;
+
 }
 
 .stat-box {
-  background: var(--glass);
-  border: 1px solid var(--border);
+
+  background:
+    var(--glass);
+
+  border:
+    1px solid var(--border);
+
   border-radius: 20px;
-  padding: 22px;
+
+  padding: 20px;
+
   text-align: center;
+
   backdrop-filter: blur(10px);
+
 }
 
 .stat-number {
+
   font-size: 32px;
+
   font-weight: 600;
+
   color: var(--accent);
+
 }
 
 .stat-label {
+
   font-size: 13px;
+
   color: var(--muted);
+
   margin-top: 4px;
+
 }
 
-/* =========================
+
+/* =========================================================
    CARD
-========================= */
+========================================================= */
 
 .card {
-  background: var(--glass);
-  border: 1px solid var(--border);
+
+  background:
+    var(--glass);
+
+  border:
+    1px solid var(--border);
+
   border-radius: 24px;
-  padding: 28px;
-  margin-bottom: 24px;
+
+  padding: 26px;
+
+  margin-bottom: 22px;
+
   backdrop-filter: blur(20px);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.2);
+
 }
 
 .card-title {
-  font-size: 18px;
+
+  font-size: 19px;
+
   font-weight: 500;
-  margin-bottom: 22px;
+
+  margin-bottom: 20px;
+
   display: flex;
+
   align-items: center;
+
   gap: 10px;
+
 }
 
-/* =========================
+
+/* =========================================================
    FORM
-========================= */
+========================================================= */
 
 .form-grid {
+
   display: grid;
-  grid-template-columns: 1fr 1fr;
+
+  grid-template-columns:
+    1fr 1fr;
+
   gap: 18px;
+
 }
 
 .form-group {
+
   margin-bottom: 4px;
+
 }
 
 .form-group.full {
-  grid-column: 1 / -1;
+
+  grid-column:
+    1 / -1;
+
 }
 
 label {
+
   display: block;
+
   font-size: 13px;
+
   color: var(--muted);
+
   margin-bottom: 8px;
+
 }
 
 input,
 select {
+
   width: 100%;
-  padding: 14px 16px;
+
+  padding: 13px 15px;
+
   border-radius: 14px;
-  border: 1px solid var(--border);
-  background: rgba(0,0,0,0.2);
+
+  border:
+    1px solid var(--border);
+
+  background:
+    rgba(0,0,0,0.2);
+
   color: var(--text);
+
   font-family: inherit;
+
   font-size: 15px;
+
   outline: none;
+
   transition: 0.2s;
+
 }
 
 input:focus,
 select:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 4px rgba(56,189,248,0.12);
+
+  border-color:
+    var(--accent);
+
+  box-shadow:
+    0 0 0 4px
+    rgba(56,189,248,0.12);
+
 }
 
 select option {
-  background: #1e293b;
+
+  background:
+    #1e293b;
+
   color: #fff;
+
 }
 
-/* =========================
+.help-text {
+
+  display: block;
+
+  color: var(--muted);
+
+  font-size: 12px;
+
+  margin-top: 6px;
+
+}
+
+
+/* =========================================================
    GENDER
-========================= */
+========================================================= */
 
 .gender-options {
+
   display: flex;
+
   gap: 12px;
+
 }
 
 .gender-btn {
+
   flex: 1;
-  padding: 14px;
+
+  padding: 13px;
+
   border-radius: 14px;
-  border: 1px solid var(--border);
-  background: rgba(0,0,0,0.2);
+
+  border:
+    1px solid var(--border);
+
+  background:
+    rgba(0,0,0,0.2);
+
   color: var(--muted);
+
   cursor: pointer;
+
   transition: 0.2s;
+
   font-size: 15px;
+
   font-family: inherit;
+
 }
 
 .gender-btn.active.male {
-  background: rgba(96,165,250,0.18);
-  border-color: var(--male);
-  color: var(--male);
+
+  background:
+    rgba(96,165,250,0.18);
+
+  border-color:
+    var(--male);
+
+  color:
+    var(--male);
+
 }
 
 .gender-btn.active.female {
-  background: rgba(244,114,182,0.18);
-  border-color: var(--female);
-  color: var(--female);
+
+  background:
+    rgba(244,114,182,0.18);
+
+  border-color:
+    var(--female);
+
+  color:
+    var(--female);
+
 }
 
-/* =========================
+
+/* =========================================================
    BUTTONS
-========================= */
+========================================================= */
 
 .btn-group {
+
   display: flex;
+
   gap: 12px;
+
   margin-top: 24px;
+
 }
 
 .btn {
+
   flex: 1;
-  padding: 15px 24px;
+
+  padding: 14px 20px;
+
   border-radius: 14px;
+
   border: none;
+
   font-family: inherit;
+
   font-size: 15px;
+
   font-weight: 500;
+
   cursor: pointer;
+
   transition: 0.2s;
+
+}
+
+.btn:disabled {
+
+  opacity: 0.5;
+
+  cursor: not-allowed;
+
 }
 
 .btn-primary {
-  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+
+  background:
+    linear-gradient(
+      90deg,
+      var(--accent),
+      var(--accent-2)
+    );
+
   color: #fff;
+
 }
 
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 28px rgba(56,189,248,0.3);
+.btn-primary:hover:not(:disabled) {
+
+  transform:
+    translateY(-2px);
+
+  box-shadow:
+    0 12px 28px
+    rgba(56,189,248,0.3);
+
 }
 
 .btn-secondary {
-  background: rgba(255,255,255,0.06);
-  color: var(--muted);
-  border: 1px solid var(--border);
+
+  background:
+    rgba(255,255,255,0.06);
+
+  color:
+    var(--muted);
+
+  border:
+    1px solid var(--border);
+
 }
 
 .btn-secondary:hover {
-  background: rgba(255,255,255,0.12);
-  color: var(--text);
+
+  background:
+    rgba(255,255,255,0.12);
+
+  color:
+    var(--text);
+
 }
 
 .btn-danger {
-  background: rgba(239,68,68,0.12);
-  color: var(--danger);
-  border: 1px solid rgba(239,68,68,0.25);
+
+  background:
+    rgba(239,68,68,0.12);
+
+  color:
+    var(--danger);
+
+  border:
+    1px solid
+    rgba(239,68,68,0.25);
+
 }
 
 .btn-danger:hover {
-  background: rgba(239,68,68,0.22);
+
+  background:
+    rgba(239,68,68,0.22);
+
 }
 
-/* =========================
+
+/* =========================================================
+   SEARCH
+========================================================= */
+
+.search-box {
+
+  margin-bottom: 16px;
+
+}
+
+.search-box input {
+
+  background:
+    rgba(0,0,0,0.18);
+
+}
+
+
+/* =========================================================
    MEMBERS
-========================= */
+========================================================= */
 
 .members-list {
+
   display: grid;
+
   gap: 12px;
+
 }
 
 .member-item {
+
   display: flex;
+
   align-items: center;
+
   justify-content: space-between;
-  padding: 16px 18px;
+
+  padding: 15px 17px;
+
   border-radius: 16px;
-  background: rgba(0,0,0,0.18);
-  border: 1px solid var(--border);
+
+  background:
+    rgba(0,0,0,0.18);
+
+  border:
+    1px solid var(--border);
+
   cursor: pointer;
+
   transition: 0.2s;
+
 }
 
 .member-item:hover,
 .member-item.active {
-  border-color: var(--accent);
-  background: rgba(56,189,248,0.08);
+
+  border-color:
+    var(--accent);
+
+  background:
+    rgba(56,189,248,0.08);
+
 }
 
 .member-info {
+
   display: flex;
+
   align-items: center;
-  gap: 14px;
+
+  gap: 13px;
+
   min-width: 0;
+
 }
 
 .member-icon {
-  width: 42px;
-  height: 42px;
-  min-width: 42px;
+
+  width: 44px;
+
+  height: 44px;
+
+  min-width: 44px;
+
   border-radius: 50%;
+
   display: flex;
+
   align-items: center;
+
   justify-content: center;
+
   font-size: 20px;
+
 }
 
 .member-icon.male {
-  background: rgba(96,165,250,0.18);
-  color: var(--male);
+
+  background:
+    rgba(96,165,250,0.18);
+
+  color:
+    var(--male);
+
 }
 
 .member-icon.female {
-  background: rgba(244,114,182,0.18);
-  color: var(--female);
+
+  background:
+    rgba(244,114,182,0.18);
+
+  color:
+    var(--female);
+
 }
 
 .member-name {
+
   font-weight: 500;
+
   font-size: 16px;
+
 }
 
 .member-meta {
-  font-size: 13px;
-  color: var(--muted);
-  margin-top: 2px;
+
+  font-size: 12px;
+
+  color:
+    var(--muted);
+
+  margin-top: 3px;
+
   line-height: 1.6;
+
 }
 
 .member-actions {
+
   display: flex;
+
   gap: 8px;
+
   margin-left: 12px;
+
 }
 
 .icon-btn {
+
   width: 36px;
+
   height: 36px;
+
   min-width: 36px;
+
   border-radius: 10px;
+
   border: none;
-  background: rgba(255,255,255,0.06);
-  color: var(--muted);
+
+  background:
+    rgba(255,255,255,0.06);
+
+  color:
+    var(--muted);
+
   cursor: pointer;
+
   transition: 0.2s;
+
   font-size: 15px;
+
   display: flex;
+
   align-items: center;
+
   justify-content: center;
+
 }
 
 .icon-btn:hover {
-  background: rgba(255,255,255,0.15);
-  color: var(--text);
+
+  background:
+    rgba(255,255,255,0.15);
+
+  color:
+    var(--text);
+
 }
 
 .icon-btn.edit:hover {
-  color: var(--accent);
+
+  color:
+    var(--accent);
+
 }
 
 .icon-btn.delete:hover {
-  color: var(--danger);
+
+  color:
+    var(--danger);
+
 }
 
 .empty-list {
+
   text-align: center;
+
   padding: 50px 20px;
-  color: var(--muted);
+
+  color:
+    var(--muted);
+
 }
 
-/* =========================
+
+/* =========================================================
+   LOADING
+========================================================= */
+
+.loading {
+
+  text-align: center;
+
+  padding: 40px;
+
+  color:
+    var(--muted);
+
+}
+
+
+/* =========================================================
    TOAST
-========================= */
+========================================================= */
 
 .toast {
+
   position: fixed;
+
   bottom: 24px;
+
   right: 24px;
-  padding: 16px 24px;
+
+  max-width: calc(100vw - 48px);
+
+  padding: 14px 20px;
+
   border-radius: 16px;
-  background: rgba(15,23,42,0.9);
+
+  background:
+    rgba(15,23,42,0.95);
+
   backdrop-filter: blur(20px);
-  border: 1px solid var(--border);
-  color: var(--text);
-  transform: translateY(120px);
+
+  border:
+    1px solid var(--border);
+
+  color:
+    var(--text);
+
+  transform:
+    translateY(120px);
+
   opacity: 0;
+
   transition: 0.3s;
+
   z-index: 1000;
+
 }
 
 .toast.show {
-  transform: translateY(0);
+
+  transform:
+    translateY(0);
+
   opacity: 1;
+
 }
 
-/* =========================
+.toast.success {
+
+  border-color:
+    rgba(34,197,94,0.5);
+
+}
+
+.toast.error {
+
+  border-color:
+    rgba(239,68,68,0.5);
+
+}
+
+
+/* =========================================================
    MOBILE
-========================= */
+========================================================= */
 
 @media (max-width: 640px) {
 
   .app {
-    padding: 24px 14px;
+
+    padding:
+      20px 12px 50px;
+
+  }
+
+  .top-bar {
+
+    align-items:
+      flex-start;
+
   }
 
   .logo {
-    font-size: 28px;
+
+    font-size: 27px;
+
+  }
+
+  .subtitle {
+
+    font-size: 14px;
+
   }
 
   .form-grid {
-    grid-template-columns: 1fr;
+
+    grid-template-columns:
+      1fr;
+
   }
 
   .form-group.full {
-    grid-column: auto;
+
+    grid-column:
+      auto;
+
   }
 
   .stats {
-    grid-template-columns: 1fr 1fr;
+
+    grid-template-columns:
+      1fr 1fr;
+
   }
 
   .stats .stat-box:first-child {
-    grid-column: 1 / -1;
+
+    grid-column:
+      1 / -1;
+
   }
 
   .card {
-    padding: 20px;
+
+    padding: 19px;
+
   }
 
   .member-item {
-    align-items: flex-start;
+
+    align-items:
+      flex-start;
+
   }
 
   .member-actions {
-    flex-direction: column;
+
+    flex-direction:
+      column;
+
   }
+
+  .btn-group {
+
+    flex-wrap:
+      wrap;
+
+  }
+
+  .btn {
+
+    min-width:
+      100%;
+
+  }
+
+  .home-btn {
+
+    padding:
+      8px 12px;
+
+  }
+
 }
-</style></head><body><div class="app">  <!-- HOME -->  <div class="top-bar">
-    <a href="index.html" class="home-btn">
-      🏠 กลับหน้าหลัก
-    </a>
-  </div>  <header>
-    <div class="logo">👨‍👩‍👧 Family Member Manager</div>
-    <div class="subtitle">จัดการข้อมูลสมาชิกในครอบครัว</div>
-  </header>  <!-- STATS -->  <div class="stats"><div class="stat-box">
-  <div class="stat-number" id="stat-total">0</div>
-  <div class="stat-label">สมาชิกทั้งหมด</div>
+
+
+/* =========================================================
+   VERY SMALL SCREEN
+========================================================= */
+
+@media (max-width: 380px) {
+
+  .status {
+
+    display: none;
+
+  }
+
+  .member-name {
+
+    font-size: 14px;
+
+  }
+
+  .member-meta {
+
+    font-size: 11px;
+
+  }
+
+}
+
+</style></head><body><div class="app">  <!-- =====================================================
+       TOP BAR
+  ====================================================== -->  <div class="top-bar"><div class="status">
+
+  <span
+    class="status-dot"
+    id="status-dot"
+  ></span>
+
+  <span id="status-text">
+    กำลังเชื่อมต่อ...
+  </span>
+
 </div>
+
+
+<a
+  href="index.html"
+  class="home-btn"
+>
+  🏠 กลับหน้าหลัก
+</a>
+
+  </div>  <!-- =====================================================
+       HEADER
+  ====================================================== -->  <header><div class="logo">
+  👨‍👩‍👧 Family Member Manager
+</div>
+
+<div class="subtitle">
+  จัดการข้อมูลสมาชิกในครอบครัว
+</div>
+
+  </header>  <!-- =====================================================
+       STATS
+  ====================================================== -->  <div class="stats"><div class="stat-box">
+
+  <div
+    class="stat-number"
+    id="stat-total"
+  >
+    0
+  </div>
+
+  <div class="stat-label">
+    สมาชิกทั้งหมด
+  </div>
+
+</div>
+
 
 <div class="stat-box">
-  <div class="stat-number" id="stat-male">0</div>
-  <div class="stat-label">ชาย</div>
+
+  <div
+    class="stat-number"
+    id="stat-male"
+  >
+    0
+  </div>
+
+  <div class="stat-label">
+    ชาย
+  </div>
+
 </div>
+
 
 <div class="stat-box">
-  <div class="stat-number" id="stat-female">0</div>
-  <div class="stat-label">หญิง</div>
+
+  <div
+    class="stat-number"
+    id="stat-female"
+  >
+    0
+  </div>
+
+  <div class="stat-label">
+    หญิง
+  </div>
+
 </div>
 
-  </div>  <!-- FORM -->  <div class="card"><div class="card-title" id="form-title">
+  </div>  <!-- =====================================================
+       FORM
+  ====================================================== -->  <div class="card"><div
+  class="card-title"
+  id="form-title"
+>
   ➕ เพิ่มสมาชิก
 </div>
 
+
 <form id="member-form">
+
 
   <div class="form-grid">
 
+
+    <!-- NAME -->
+
     <div class="form-group full">
-      <label>ชื่อ</label>
+
+      <label>
+        ชื่อ
+      </label>
+
       <input
         type="text"
         id="name"
         placeholder="เช่น เกย"
+        autocomplete="off"
         required
-      />
+      >
+
     </div>
+
+
+    <!-- GENDER -->
 
     <div class="form-group">
 
-      <label>เพศ</label>
+      <label>
+        เพศ
+      </label>
+
 
       <div class="gender-options">
 
@@ -516,6 +1138,7 @@ select option {
         >
           ♂ ชาย
         </button>
+
 
         <button
           type="button"
@@ -529,43 +1152,70 @@ select option {
 
     </div>
 
+
     <!-- SPOUSE -->
+
     <div class="form-group">
 
-      <label>คู่สมรส</label>
+      <label>
+        คู่สมรส
+      </label>
 
-      <select id="spouse" multiple size="4">
-      </select>
+      <select
+        id="spouse"
+        multiple
+        size="5"
+      ></select>
 
-      <small style="color:var(--muted);font-size:12px;">
-        กด Ctrl / Command เพื่อเลือกหลายคน
+      <small class="help-text">
+        สามารถเลือกคู่สมรสได้หลายคน
       </small>
 
     </div>
 
+
     <!-- FATHER -->
+
     <div class="form-group">
 
-      <label>บิดา</label>
+      <label>
+        บิดา
+      </label>
 
       <select id="father">
-        <option value="">-- ไม่มี --</option>
+
+        <option value="">
+          -- ไม่มี --
+        </option>
+
       </select>
 
     </div>
+
 
     <!-- MOTHER -->
+
     <div class="form-group">
 
-      <label>มารดา</label>
+      <label>
+        มารดา
+      </label>
 
       <select id="mother">
-        <option value="">-- ไม่มี --</option>
+
+        <option value="">
+          -- ไม่มี --
+        </option>
+
       </select>
 
     </div>
 
+
   </div>
+
+
+  <!-- BUTTONS -->
 
   <div class="btn-group">
 
@@ -577,121 +1227,440 @@ select option {
       บันทึก
     </button>
 
+
     <button
       type="button"
       class="btn btn-secondary"
       id="cancel-btn"
-      style="display:none;"
+      style="display:none"
     >
       ยกเลิก
     </button>
+
 
     <button
       type="button"
       class="btn btn-danger"
       id="delete-btn"
-      style="display:none;"
+      style="display:none"
     >
-      ลบ
+      ลบสมาชิก
     </button>
 
   </div>
 
+
 </form>
 
-  </div>  <!-- MEMBERS LIST -->  <div class="card"><div class="card-title">
+  </div>  <!-- =====================================================
+       MEMBER LIST
+  ====================================================== -->  <div class="card"><div class="card-title">
   📋 รายชื่อสมาชิก
 </div>
+
+
+<div class="search-box">
+
+  <input
+    type="search"
+    id="search"
+    placeholder="🔍 ค้นหาชื่อสมาชิก..."
+    autocomplete="off"
+  >
+
+</div>
+
 
 <div
   class="members-list"
   id="members-list"
-></div>
+>
 
-  </div></div><div class="toast" id="toast"></div><script>
+  <div class="loading">
+    กำลังโหลดข้อมูล...
+  </div>
+
+</div>
+
+  </div></div><!-- =======================================================
+     TOAST
+======================================================== --><div
+  class="toast"
+  id="toast"
+></div><script>
+
 
 /* =========================================================
-   LOAD DATA
-   ใช้ familyRawData จาก data.js โดยตรง
+   CONFIG
 ========================================================= */
 
-let people = Array.isArray(window.familyRawData)
-  ? window.familyRawData.map(p => ({
-      ...p,
-      spouse: Array.isArray(p.spouse)
-        ? [...p.spouse]
-        : [],
-      father: p.father || "",
-      mother: p.mother || "",
-      gender: p.gender || "ช",
-      photo: p.photo || ""
-    }))
-  : [];
+const API = "/api/family";
+
+
+/* =========================================================
+   STATE
+========================================================= */
+
+let people = [];
 
 let selectedGender = "ช";
+
 let editingId = null;
+
+
+/* =========================================================
+   DOM
+========================================================= */
+
+const form =
+  document.getElementById(
+    "member-form"
+  );
+
+const nameInput =
+  document.getElementById(
+    "name"
+  );
+
+const spouseSelect =
+  document.getElementById(
+    "spouse"
+  );
+
+const fatherSelect =
+  document.getElementById(
+    "father"
+  );
+
+const motherSelect =
+  document.getElementById(
+    "mother"
+  );
+
+const membersList =
+  document.getElementById(
+    "members-list"
+  );
+
+const searchInput =
+  document.getElementById(
+    "search"
+  );
+
+
+/* =========================================================
+   STATUS
+========================================================= */
+
+function setServerStatus(
+  online,
+  message
+) {
+
+  const dot =
+    document.getElementById(
+      "status-dot"
+    );
+
+  const text =
+    document.getElementById(
+      "status-text"
+    );
+
+
+  dot.classList.toggle(
+    "error",
+    !online
+  );
+
+
+  text.textContent =
+    message;
+
+}
 
 
 /* =========================================================
    TOAST
 ========================================================= */
 
-function showToast(msg) {
+let toastTimer = null;
 
-  const t = document.getElementById("toast");
+function showToast(
+  message,
+  type = "success"
+) {
 
-  t.textContent = msg;
-  t.classList.add("show");
+  const toast =
+    document.getElementById(
+      "toast"
+    );
 
-  setTimeout(() => {
-    t.classList.remove("show");
-  }, 2500);
+
+  toast.textContent =
+    message;
+
+
+  toast.className =
+    "toast show " +
+    type;
+
+
+  clearTimeout(
+    toastTimer
+  );
+
+
+  toastTimer =
+    setTimeout(
+      () => {
+
+        toast.classList.remove(
+          "show"
+        );
+
+      },
+      3000
+    );
 
 }
 
 
 /* =========================================================
-   FIND PERSON
+   LOAD DATA
 ========================================================= */
 
-function getPerson(id) {
+async function loadData() {
 
-  if (!id) return null;
+  try {
+
+    setServerStatus(
+      true,
+      "กำลังโหลดข้อมูล..."
+    );
+
+
+    const response =
+      await fetch(
+        API,
+        {
+          method: "GET",
+          cache: "no-store"
+        }
+      );
+
+
+    if (!response.ok) {
+
+      throw new Error(
+        `HTTP ${response.status}`
+      );
+
+    }
+
+
+    const result =
+      await response.json();
+
+
+    if (
+      !result.success
+    ) {
+
+      throw new Error(
+        result.message ||
+        "โหลดข้อมูลไม่สำเร็จ"
+      );
+
+    }
+
+
+    people =
+      Array.isArray(result.data)
+        ? result.data.map(
+            normalizePerson
+          )
+        : [];
+
+
+    setServerStatus(
+      true,
+      `เชื่อมต่อแล้ว • ${people.length} คน`
+    );
+
+
+    refreshAll();
+
+
+  } catch (error) {
+
+    console.error(
+      "LOAD ERROR:",
+      error
+    );
+
+
+    setServerStatus(
+      false,
+      "เชื่อมต่อ Server ไม่ได้"
+    );
+
+
+    membersList.innerHTML = `
+
+      <div class="empty-list">
+
+        ❌ ไม่สามารถโหลดข้อมูลได้
+
+        <br><br>
+
+        กรุณาตรวจสอบว่าเปิด
+        <b>server.js</b>
+        อยู่หรือไม่
+
+        <br><br>
+
+        <small>
+          http://localhost:3000
+        </small>
+
+      </div>
+
+    `;
+
+
+    showToast(
+      "❌ โหลดข้อมูลจาก server ไม่ได้",
+      "error"
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   NORMALIZE PERSON
+========================================================= */
+
+function normalizePerson(
+  person
+) {
+
+  return {
+
+    id:
+      String(
+        person.id ?? ""
+      ),
+
+    name:
+      String(
+        person.name ?? ""
+      ),
+
+    father:
+      person.father === null ||
+      person.father === undefined
+        ? ""
+        : String(
+            person.father
+          ),
+
+    mother:
+      person.mother === null ||
+      person.mother === undefined
+        ? ""
+        : String(
+            person.mother
+          ),
+
+    spouse:
+      Array.isArray(
+        person.spouse
+      )
+        ? person.spouse.map(
+            String
+          )
+        : [],
+
+    gender:
+      person.gender === "ญ"
+        ? "ญ"
+        : "ช",
+
+    photo:
+      person.photo === null ||
+      person.photo === undefined
+        ? ""
+        : String(
+            person.photo
+          )
+
+  };
+
+}
+
+
+/* =========================================================
+   GET PERSON
+========================================================= */
+
+function getPerson(
+  id
+) {
 
   return people.find(
-    p => String(p.id) === String(id)
+    person =>
+      String(person.id) ===
+      String(id)
   ) || null;
 
 }
 
 
 /* =========================================================
-   NAME
+   GET NAME
 ========================================================= */
 
-function getName(id) {
+function getName(
+  id
+) {
 
-  const p = getPerson(id);
+  const person =
+    getPerson(id);
 
-  return p ? p.name : "";
+  return person
+    ? person.name
+    : "";
 
 }
-
-
 /* =========================================================
-   STATS
+   UPDATE STATS
 ========================================================= */
 
 function updateStats() {
 
-  document.getElementById("stat-total").textContent =
+  document.getElementById(
+    "stat-total"
+  ).textContent =
     people.length;
 
-  document.getElementById("stat-male").textContent =
-    people.filter(p => p.gender === "ช").length;
 
-  document.getElementById("stat-female").textContent =
-    people.filter(p => p.gender === "ญ").length;
+  document.getElementById(
+    "stat-male"
+  ).textContent =
+    people.filter(
+      p => p.gender === "ช"
+    ).length;
+
+
+  document.getElementById(
+    "stat-female"
+  ).textContent =
+    people.filter(
+      p => p.gender === "ญ"
+    ).length;
 
 }
 
@@ -702,243 +1671,174 @@ function updateStats() {
 
 function populateSelects() {
 
-  const spouse = document.getElementById("spouse");
-  const father = document.getElementById("father");
-  const mother = document.getElementById("mother");
-
-  const oldSpouse = Array.from(spouse.selectedOptions)
-    .map(o => o.value);
-
-  const oldFather = father.value;
-  const oldMother = mother.value;
-
-  spouse.innerHTML = "";
-  father.innerHTML = '<option value="">-- ไม่มี --</option>';
-  mother.innerHTML = '<option value="">-- ไม่มี --</option>';
-
-  people.forEach(p => {
-
-    if (editingId && String(p.id) === String(editingId)) {
-      return;
-    }
-
-    /* คู่สมรส */
-
-    const spouseOption =
-      document.createElement("option");
-
-    spouseOption.value = p.id;
-    spouseOption.textContent =
-      `${p.name} (${p.gender})`;
-
-    spouse.appendChild(spouseOption);
-
-
-    /* พ่อ */
-
-    const fatherOption =
-      document.createElement("option");
-
-    fatherOption.value = p.id;
-    fatherOption.textContent =
-      `${p.name} (${p.gender})`;
-
-    father.appendChild(fatherOption);
-
-
-    /* แม่ */
-
-    const motherOption =
-      document.createElement("option");
-
-    motherOption.value = p.id;
-    motherOption.textContent =
-      `${p.name} (${p.gender})`;
-
-    mother.appendChild(motherOption);
-
-  });
-
-
-  /* คืนค่าที่เลือกไว้ */
-
-  oldSpouse.forEach(id => {
-
-    const option =
-      spouse.querySelector(`option[value="${CSS.escape(id)}"]`);
-
-    if (option) {
-      option.selected = true;
-    }
-
-  });
-
-  if (oldFather) {
-    father.value = oldFather;
-  }
-
-  if (oldMother) {
-    mother.value = oldMother;
-  }
-
-}
-
-
-/* =========================================================
-   RENDER MEMBER LIST
-========================================================= */
-
-function renderMembersList() {
-
-  const list =
-    document.getElementById("members-list");
-
-  list.innerHTML = "";
-
-  if (people.length === 0) {
-
-    list.innerHTML =
-      `<div class="empty-list">
-        ยังไม่มีข้อมูลสมาชิก
-      </div>`;
-
-    return;
-  }
-
-
-  people.forEach(p => {
-
-    const spouseNames =
-      (p.spouse || [])
-        .map(id => getName(id))
-        .filter(Boolean);
-
-    const meta = [];
-
-
-    if (spouseNames.length) {
-
-      meta.push(
-        "คู่สมรส: " +
-        spouseNames.join(", ")
-      );
-
-    }
-
-
-    const parentNames = [];
-
-    if (p.father) {
-
-      const name = getName(p.father);
-
-      if (name) {
-        parentNames.push(
-          "บิดา: " + name
-        );
-      }
-
-    }
-
-    if (p.mother) {
-
-      const name = getName(p.mother);
-
-      if (name) {
-        parentNames.push(
-          "มารดา: " + name
-        );
-      }
-
-    }
-
-
-    meta.push(...parentNames);
-
-
-    const item =
-      document.createElement("div");
-
-    item.className =
-      "member-item" +
-      (editingId &&
-       String(editingId) === String(p.id)
-        ? " active"
-        : "");
-
-
-    item.innerHTML = `
-
-      <div class="member-info">
-
-        <div class="member-icon ${
-          p.gender === "ช"
-            ? "male"
-            : "female"
-        }">
-
-          ${
-            p.gender === "ช"
-              ? "♂"
-              : "♀"
-          }
-
-        </div>
-
-        <div>
-
-          <div class="member-name">
-            ${escapeHTML(p.name)}
-          </div>
-
-          ${
-            meta.length
-              ? `<div class="member-meta">
-                  ${meta.map(escapeHTML).join(" • ")}
-                 </div>`
-              : ""
-          }
-
-        </div>
-
-      </div>
-
-
-      <div class="member-actions">
-
-        <button
-          class="icon-btn edit"
-          title="แก้ไข"
-          onclick="
-            event.stopPropagation();
-            editMember('${p.id}');
-          "
-        >
-          ✎
-        </button>
-
-        <button
-          class="icon-btn delete"
-          title="ลบ"
-          onclick="
-            event.stopPropagation();
-            deleteMember('${p.id}');
-          "
-        >
-          🗑
-        </button>
-
-      </div>
-
+  const current =
+    editingId
+      ? getPerson(
+          editingId
+        )
+      : null;
+
+
+  const currentSpouses =
+    current &&
+    Array.isArray(
+      current.spouse
+    )
+      ? current.spouse.map(
+          String
+        )
+      : [];
+
+
+  const currentFather =
+    current
+      ? String(
+          current.father || ""
+        )
+      : "";
+
+
+  const currentMother =
+    current
+      ? String(
+          current.mother || ""
+        )
+      : "";
+
+
+  spouseSelect.innerHTML =
+    "";
+
+
+  fatherSelect.innerHTML =
+    `
+      <option value="">
+        -- ไม่มี --
+      </option>
     `;
 
 
-    item.onclick =
-      () => selectMember(p.id);
+  motherSelect.innerHTML =
+    `
+      <option value="">
+        -- ไม่มี --
+      </option>
+    `;
 
-    list.appendChild(item);
 
-  });
+  const sorted =
+    [...people].sort(
+      (a, b) =>
+        Number(a.id) -
+        Number(b.id)
+    );
+
+
+  sorted.forEach(
+    person => {
+
+
+      /*
+        ไม่ให้เลือกตัวเอง
+      */
+
+      if (
+        editingId &&
+        String(person.id) ===
+        String(editingId)
+      ) {
+
+        return;
+
+      }
+
+
+      /* -----------------------------------------------
+         SPOUSE
+      ----------------------------------------------- */
+
+      const spouseOption =
+        document.createElement(
+          "option"
+        );
+
+
+      spouseOption.value =
+        person.id;
+
+
+      spouseOption.textContent =
+        `${person.name} (${person.gender})`;
+
+
+      spouseOption.selected =
+        currentSpouses.includes(
+          String(person.id)
+        );
+
+
+      spouseSelect.appendChild(
+        spouseOption
+      );
+
+
+      /* -----------------------------------------------
+         FATHER
+      ----------------------------------------------- */
+
+      const fatherOption =
+        document.createElement(
+          "option"
+        );
+
+
+      fatherOption.value =
+        person.id;
+
+
+      fatherOption.textContent =
+        `${person.name} (${person.gender})`;
+
+
+      fatherOption.selected =
+        currentFather ===
+        String(person.id);
+
+
+      fatherSelect.appendChild(
+        fatherOption
+      );
+
+
+      /* -----------------------------------------------
+         MOTHER
+      ----------------------------------------------- */
+
+      const motherOption =
+        document.createElement(
+          "option"
+        );
+
+
+      motherOption.value =
+        person.id;
+
+
+      motherOption.textContent =
+        `${person.name} (${person.gender})`;
+
+
+      motherOption.selected =
+        currentMother ===
+        String(person.id);
+
+
+      motherSelect.appendChild(
+        motherOption
+      );
+
+    }
+  );
 
 }
 
@@ -947,90 +1847,721 @@ function renderMembersList() {
    ESCAPE HTML
 ========================================================= */
 
-function escapeHTML(value) {
+function escapeHTML(
+  value
+) {
 
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+  return String(
+    value ?? ""
+  )
+
+    .replace(
+      /&/g,
+      "&amp;"
+    )
+
+    .replace(
+      /</g,
+      "&lt;"
+    )
+
+    .replace(
+      />/g,
+      "&gt;"
+    )
+
+    .replace(
+      /"/g,
+      "&quot;"
+    )
+
+    .replace(
+      /'/g,
+      "&#039;"
+    );
 
 }
 
 
 /* =========================================================
-   SELECT MEMBER
+   RENDER LIST
 ========================================================= */
 
-function selectMember(id) {
+function renderMembersList() {
 
-  const p = getPerson(id);
+  const keyword =
+    searchInput.value
+      .trim()
+      .toLowerCase();
 
-  if (!p) return;
 
-  editingId = String(id);
+  const sorted =
+    [...people].sort(
+      (a, b) =>
+        Number(a.id) -
+        Number(b.id)
+    );
 
-  document.getElementById("name").value =
-    p.name || "";
 
-  setGender(p.gender || "ช");
+  const filtered =
+    sorted.filter(
+      person => {
 
-  document.getElementById("edit-id").value =
-    p.id;
+        if (!keyword) {
+          return true;
+        }
+
+
+        return (
+          person.name
+            .toLowerCase()
+            .includes(
+              keyword
+            )
+          ||
+          String(
+            person.id
+          ).includes(
+            keyword
+          )
+
+        );
+
+      }
+    );
+
+
+  membersList.innerHTML =
+    "";
+
+
+  if (
+    filtered.length === 0
+  ) {
+
+    membersList.innerHTML = `
+
+      <div class="empty-list">
+
+        ${
+          people.length === 0
+            ? "ยังไม่มีข้อมูลสมาชิก"
+            : "ไม่พบสมาชิกที่ค้นหา"
+        }
+
+      </div>
+
+    `;
+
+    return;
+
+  }
+
+
+  filtered.forEach(
+    person => {
+
+      const spouseNames =
+        (
+          person.spouse || []
+        )
+          .map(
+            getName
+          )
+          .filter(
+            Boolean
+          );
+
+
+      const meta = [];
+
+
+      /*
+        คู่สมรส
+      */
+
+      if (
+        spouseNames.length
+      ) {
+
+        meta.push(
+          "คู่สมรส: " +
+          spouseNames.join(
+            ", "
+          )
+        );
+
+      }
+
+
+      /*
+        พ่อ
+      */
+
+      if (
+        person.father
+      ) {
+
+        const father =
+          getName(
+            person.father
+          );
+
+
+        if (father) {
+
+          meta.push(
+            "บิดา: " +
+            father
+          );
+
+        }
+
+      }
+
+
+      /*
+        แม่
+      */
+
+      if (
+        person.mother
+      ) {
+
+        const mother =
+          getName(
+            person.mother
+          );
+
+
+        if (mother) {
+
+          meta.push(
+            "มารดา: " +
+            mother
+          );
+
+        }
+
+      }
+
+
+      const item =
+        document.createElement(
+          "div"
+        );
+
+
+      item.className =
+        "member-item" +
+        (
+          editingId &&
+          String(
+            editingId
+          ) ===
+          String(
+            person.id
+          )
+            ? " active"
+            : ""
+        );
+
+
+      item.innerHTML = `
+
+        <div class="member-info">
+
+          <div class="member-icon ${
+            person.gender === "ช"
+              ? "male"
+              : "female"
+          }">
+
+            ${
+              person.gender === "ช"
+                ? "♂"
+                : "♀"
+            }
+
+          </div>
+
+
+          <div>
+
+            <div class="member-name">
+
+              ${escapeHTML(
+                person.name
+              )}
+
+            </div>
+
+
+            <div class="member-meta">
+
+              ID: ${escapeHTML(
+                person.id
+              )}
+
+              ${
+                meta.length
+                  ? " • " +
+                    meta
+                      .map(
+                        escapeHTML
+                      )
+                      .join(
+                        " • "
+                      )
+                  : ""
+              }
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <div class="member-actions">
+
+          <button
+            type="button"
+            class="icon-btn edit"
+            title="แก้ไข"
+          >
+            ✎
+          </button>
+
+
+          <button
+            type="button"
+            class="icon-btn delete"
+            title="ลบ"
+          >
+            🗑
+          </button>
+
+        </div>
+
+      `;
+
+
+      /*
+        คลิกรายการ
+      */
+
+      item.addEventListener(
+        "click",
+        () =>
+          editMember(
+            person.id
+          )
+      );
+
+
+      /*
+        ปุ่มแก้ไข
+      */
+
+      item
+        .querySelector(
+          ".edit"
+        )
+        .addEventListener(
+          "click",
+          event => {
+
+            event.stopPropagation();
+
+            editMember(
+              person.id
+            );
+
+          }
+        );
+
+
+      /*
+        ปุ่มลบ
+      */
+
+      item
+        .querySelector(
+          ".delete"
+        )
+        .addEventListener(
+          "click",
+          event => {
+
+            event.stopPropagation();
+
+            deleteMember(
+              person.id
+            );
+
+          }
+        );
+
+
+      membersList.appendChild(
+        item
+      );
+
+    }
+  );
+
+}
+
+
+/* =========================================================
+   EDIT MEMBER
+========================================================= */
+
+function editMember(
+  id
+) {
+
+  const person =
+    getPerson(id);
+
+
+  if (!person) {
+    return;
+  }
+
+
+  editingId =
+    String(id);
+
+
+  nameInput.value =
+    person.name || "";
+
+
+  setGender(
+    person.gender || "ช"
+  );
 
 
   populateSelects();
 
 
-  /* คู่สมรสหลายคน */
+  /*
+    ตั้งค่าคู่สมรส
+  */
 
-  const spouseSelect =
-    document.getElementById("spouse");
+  const spouseIds =
+    (
+      person.spouse || []
+    ).map(
+      String
+    );
 
-  Array.from(spouseSelect.options)
-    .forEach(option => {
+
+  Array.from(
+    spouseSelect.options
+  ).forEach(
+    option => {
 
       option.selected =
-        (p.spouse || [])
-          .map(String)
-          .includes(String(option.value));
+        spouseIds.includes(
+          String(
+            option.value
+          )
+        );
 
-    });
-
-
-  document.getElementById("father").value =
-    p.father || "";
-
-  document.getElementById("mother").value =
-    p.mother || "";
+    }
+  );
 
 
-  document.getElementById("form-title").textContent =
+  fatherSelect.value =
+    person.father || "";
+
+
+  motherSelect.value =
+    person.mother || "";
+
+
+  document.getElementById(
+    "form-title"
+  ).textContent =
     "✏️ แก้ไขสมาชิก";
 
-  document.getElementById("save-btn").textContent =
-    "อัปเดต";
 
-  document.getElementById("cancel-btn").style.display =
+  document.getElementById(
+    "save-btn"
+  ).textContent =
+    "อัปเดตข้อมูล";
+
+
+  document.getElementById(
+    "cancel-btn"
+  ).style.display =
     "block";
 
-  document.getElementById("delete-btn").style.display =
+
+  document.getElementById(
+    "delete-btn"
+  ).style.display =
     "block";
 
 
   renderMembersList();
 
+
+  window.scrollTo({
+
+    top: 0,
+
+    behavior: "smooth"
+
+  });
+
 }
 
 
 /* =========================================================
-   EDIT
+   SAVE
 ========================================================= */
 
-function editMember(id) {
+async function saveMember() {
 
-  selectMember(id);
+  const name =
+    nameInput.value.trim();
+
+
+  if (!name) {
+
+    showToast(
+      "⚠️ กรุณากรอกชื่อ",
+      "error"
+    );
+
+    nameInput.focus();
+
+    return;
+
+  }
+
+
+  const spouse =
+    Array.from(
+      spouseSelect.selectedOptions
+    )
+      .map(
+        option =>
+          String(
+            option.value
+          )
+      );
+
+
+  const father =
+    String(
+      fatherSelect.value || ""
+    );
+
+
+  const mother =
+    String(
+      motherSelect.value || ""
+    );
+
+
+  /*
+    ตรวจพ่อแม่คนเดียวกัน
+  */
+
+  if (
+    father &&
+    mother &&
+    father === mother
+  ) {
+
+    showToast(
+      "⚠️ บิดาและมารดาต้องเป็นคนละคน",
+      "error"
+    );
+
+    return;
+
+  }
+
+
+  const person = {
+
+    name:
+      name,
+
+    gender:
+      selectedGender,
+
+    father:
+      father,
+
+    mother:
+      mother,
+
+    spouse:
+      spouse,
+
+    photo:
+      editingId
+        ? (
+            getPerson(
+              editingId
+            )?.photo || ""
+          )
+        : ""
+
+  };
+
+
+  const saveButton =
+    document.getElementById(
+      "save-btn"
+    );
+
+
+  saveButton.disabled =
+    true;
+
+
+  try {
+
+    let response;
+
+
+    /*
+      EDIT
+    */
+
+    if (editingId) {
+
+      response =
+        await fetch(
+          `${API}/${encodeURIComponent(
+            editingId
+          )}`,
+          {
+
+            method: "PUT",
+
+            headers: {
+              "Content-Type":
+                "application/json"
+            },
+
+            body:
+              JSON.stringify(
+                person
+              )
+
+          }
+        );
+
+    }
+
+
+    /*
+      ADD
+    */
+
+    else {
+
+      response =
+        await fetch(
+          API,
+          {
+
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json"
+            },
+
+            body:
+              JSON.stringify(
+                person
+              )
+
+          }
+        );
+
+    }
+
+
+    const result =
+      await response.json();
+
+
+    if (
+      !response.ok ||
+      !result.success
+    ) {
+
+      throw new Error(
+        result.message ||
+        "บันทึกข้อมูลไม่สำเร็จ"
+      );
+
+    }
+
+
+    if (editingId) {
+
+      showToast(
+        "✅ อัปเดตข้อมูลลง data.js แล้ว"
+      );
+
+    } else {
+
+      showToast(
+        "✅ เพิ่มสมาชิกลง data.js แล้ว"
+      );
+
+    }
+
+
+    /*
+      โหลดข้อมูลใหม่จาก server
+    */
+
+    await loadData();
+
+
+    /*
+      ล้างฟอร์ม
+    */
+
+    resetForm(
+      false
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      "SAVE ERROR:",
+      error
+    );
+
+
+    showToast(
+      "❌ " +
+      error.message,
+      "error"
+    );
+
+
+  } finally {
+
+    saveButton.disabled =
+      false;
+
+  }
 
 }
 
@@ -1039,59 +2570,94 @@ function editMember(id) {
    DELETE
 ========================================================= */
 
-function deleteMember(id) {
+async function deleteMember(
+  id
+) {
 
-  const p = getPerson(id);
+  const person =
+    getPerson(id);
 
-  if (!p) return;
 
-
-  if (!confirm(
-    `ต้องการลบ "${p.name}" ใช่หรือไม่?`
-  )) {
+  if (!person) {
     return;
   }
 
 
-  people =
-    people.filter(
-      x => String(x.id) !== String(id)
+  const confirmed =
+    confirm(
+      `ต้องการลบ "${person.name}" ใช่หรือไม่?\n\n` +
+      `ID: ${person.id}\n\n` +
+      `ความสัมพันธ์กับสมาชิกคนอื่นจะถูกปรับด้วย`
     );
 
 
-  /* ลบ ID นี้ออกจากคู่สมรสของคนอื่น */
-
-  people.forEach(x => {
-
-    x.spouse =
-      (x.spouse || [])
-        .filter(
-          spouseId =>
-            String(spouseId) !== String(id)
-        );
-
-    if (String(x.father) === String(id)) {
-      x.father = "";
-    }
-
-    if (String(x.mother) === String(id)) {
-      x.mother = "";
-    }
-
-  });
-
-
-  if (
-    editingId &&
-    String(editingId) === String(id)
-  ) {
-    resetForm();
+  if (!confirmed) {
+    return;
   }
 
 
-  refreshAll();
+  try {
 
-  showToast("ลบสมาชิกแล้ว");
+    const response =
+      await fetch(
+        `${API}/${encodeURIComponent(
+          id
+        )}`,
+        {
+          method: "DELETE"
+        }
+      );
+
+
+    const result =
+      await response.json();
+
+
+    if (
+      !response.ok ||
+      !result.success
+    ) {
+
+      throw new Error(
+        result.message ||
+        "ลบข้อมูลไม่สำเร็จ"
+      );
+
+    }
+
+
+    showToast(
+      "✅ ลบสมาชิกและบันทึก data.js แล้ว"
+    );
+
+
+    editingId =
+      null;
+
+
+    await loadData();
+
+
+    resetForm(
+      false
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      "DELETE ERROR:",
+      error
+    );
+
+
+    showToast(
+      "❌ " +
+      error.message,
+      "error"
+    );
+
+  }
 
 }
 
@@ -1100,33 +2666,59 @@ function deleteMember(id) {
    RESET FORM
 ========================================================= */
 
-function resetForm() {
+function resetForm(
+  showMessage = true
+) {
 
-  editingId = null;
-
-  document
-    .getElementById("member-form")
-    .reset();
-
-  setGender("ช");
+  editingId =
+    null;
 
 
-  document.getElementById("form-title").textContent =
+  form.reset();
+
+
+  setGender(
+    "ช"
+  );
+
+
+  document.getElementById(
+    "form-title"
+  ).textContent =
     "➕ เพิ่มสมาชิก";
 
-  document.getElementById("save-btn").textContent =
+
+  document.getElementById(
+    "save-btn"
+  ).textContent =
     "บันทึก";
 
-  document.getElementById("cancel-btn").style.display =
+
+  document.getElementById(
+    "cancel-btn"
+  ).style.display =
     "none";
 
-  document.getElementById("delete-btn").style.display =
+
+  document.getElementById(
+    "delete-btn"
+  ).style.display =
     "none";
 
 
   populateSelects();
 
+
   renderMembersList();
+
+
+  if (showMessage) {
+
+    showToast(
+      "ยกเลิกการแก้ไข"
+    );
+
+  }
 
 }
 
@@ -1135,287 +2727,79 @@ function resetForm() {
    GENDER
 ========================================================= */
 
-function setGender(g) {
+function setGender(
+  gender
+) {
 
-  selectedGender = g;
+  selectedGender =
+    gender === "ญ"
+      ? "ญ"
+      : "ช";
+
 
   document
-    .querySelectorAll(".gender-btn")
-    .forEach(btn => {
+    .querySelectorAll(
+      ".gender-btn"
+    )
+    .forEach(
+      button => {
 
-      btn.classList.toggle(
-        "active",
-        btn.dataset.g === g
-      );
+        const active =
+          button.dataset.g ===
+          selectedGender;
 
-    });
 
-}
-/* =========================================================
-   REFRESH
-========================================================= */
+        button.classList.toggle(
+          "active",
+          active
+        );
 
-function refreshAll() {
-
-  populateSelects();
-  renderMembersList();
-  updateStats();
+      }
+    );
 
 }
 
 
 /* =========================================================
-   GENDER BUTTON
+   GENDER BUTTONS
 ========================================================= */
 
 document
-  .querySelectorAll(".gender-btn")
-  .forEach(btn => {
+  .querySelectorAll(
+    ".gender-btn"
+  )
+  .forEach(
+    button => {
 
-    btn.onclick = () => {
+      button.addEventListener(
+        "click",
+        () => {
 
-      setGender(btn.dataset.g);
+          setGender(
+            button.dataset.g
+          );
 
-    };
+        }
+      );
 
-  });
+    }
+  );
 
 
 /* =========================================================
    FORM SUBMIT
 ========================================================= */
 
-document
-  .getElementById("member-form")
-  .onsubmit = function(e) {
+form.addEventListener(
+  "submit",
+  event => {
 
-    e.preventDefault();
+    event.preventDefault();
 
+    saveMember();
 
-    const name =
-      document
-        .getElementById("name")
-        .value
-        .trim();
-
-
-    const spouse =
-      Array.from(
-        document.getElementById("spouse").selectedOptions
-      ).map(option => option.value);
-
-
-    const father =
-      document.getElementById("father").value;
-
-
-    const mother =
-      document.getElementById("mother").value;
-
-
-    if (!name) {
-
-      alert("กรุณากรอกชื่อ");
-
-      return;
-
-    }
-
-
-    /* คนเดียวกันเป็นทั้งพ่อและแม่ไม่ได้ */
-
-    if (
-      father &&
-      mother &&
-      father === mother
-    ) {
-
-      alert(
-        "ไม่สามารถเลือกบิดาและมารดาเป็นคนเดียวกันได้"
-      );
-
-      return;
-
-    }
-
-
-    /* คนเดียวกันเป็นทั้งคู่สมรสและพ่อ/แม่ไม่ได้ */
-
-    if (
-      spouse.includes(father) ||
-      spouse.includes(mother)
-    ) {
-
-      alert(
-        "ไม่สามารถเลือกบุคคลเดียวกันเป็นคู่สมรสและบิดา/มารดาได้"
-      );
-
-      return;
-
-    }
-
-
-    /* =====================
-       UPDATE
-    ===================== */
-
-    if (editingId) {
-
-      const p =
-        getPerson(editingId);
-
-      if (!p) return;
-
-
-      p.name = name;
-      p.gender = selectedGender;
-      p.spouse = spouse;
-      p.father = father;
-      p.mother = mother;
-
-
-      /*
-       * อัปเดตความสัมพันธ์คู่สมรส
-       */
-
-      people.forEach(other => {
-
-        if (
-          String(other.id) ===
-          String(p.id)
-        ) {
-          return;
-        }
-
-        other.spouse =
-          (other.spouse || [])
-            .filter(
-              id =>
-                !spouse.includes(
-                  String(id)
-                ) ||
-                spouse.includes(
-                  String(other.id)
-                )
-            );
-
-      });
-
-
-      spouse.forEach(spouseId => {
-
-        const spousePerson =
-          getPerson(spouseId);
-
-        if (!spousePerson) return;
-
-        if (!Array.isArray(
-          spousePerson.spouse
-        )) {
-          spousePerson.spouse = [];
-        }
-
-        if (
-          !spousePerson.spouse
-            .map(String)
-            .includes(String(p.id))
-        ) {
-
-          spousePerson.spouse.push(
-            String(p.id)
-          );
-
-        }
-
-      });
-
-
-      showToast("อัปเดตสมาชิกแล้ว");
-
-    }
-
-
-    /* =====================
-       ADD
-    ===================== */
-
-    else {
-
-      const newId =
-        String(
-          Math.max(
-            0,
-            ...people.map(
-              p => Number(p.id) || 0
-            )
-          ) + 1
-        );
-
-
-      const newPerson = {
-
-        id: newId,
-
-        name: name,
-
-        father: father,
-
-        mother: mother,
-
-        spouse: spouse,
-
-        gender: selectedGender,
-
-        photo: ""
-
-      };
-
-
-      people.push(newPerson);
-
-
-      /*
-       * เพิ่มความสัมพันธ์คู่สมรส
-       */
-
-      spouse.forEach(spouseId => {
-
-        const spousePerson =
-          getPerson(spouseId);
-
-        if (!spousePerson) return;
-
-        if (!Array.isArray(
-          spousePerson.spouse
-        )) {
-          spousePerson.spouse = [];
-        }
-
-        if (
-          !spousePerson.spouse
-            .map(String)
-            .includes(newId)
-        ) {
-
-          spousePerson.spouse.push(
-            newId
-          );
-
-        }
-
-      });
-
-
-      showToast("เพิ่มสมาชิกแล้ว");
-
-    }
-
-
-    resetForm();
-
-    refreshAll();
-
-  };
+  }
+);
 
 
 /* =========================================================
@@ -1423,34 +2807,66 @@ document
 ========================================================= */
 
 document
-  .getElementById("cancel-btn")
-  .onclick = resetForm;
+  .getElementById(
+    "cancel-btn"
+  )
+  .addEventListener(
+    "click",
+    () => {
+
+      resetForm();
+
+    }
+  );
 
 
 /* =========================================================
-   DELETE FROM FORM
+   DELETE BUTTON
 ========================================================= */
 
 document
-  .getElementById("delete-btn")
-  .onclick = function() {
+  .getElementById(
+    "delete-btn"
+  )
+  .addEventListener(
+    "click",
+    () => {
 
-    if (editingId) {
+      if (editingId) {
 
-      deleteMember(editingId);
+        deleteMember(
+          editingId
+        );
+
+      }
 
     }
+  );
 
-  };
+
+/* =========================================================
+   SEARCH
+========================================================= */
+
+searchInput.addEventListener(
+  "input",
+  () => {
+
+    renderMembersList();
+
+  }
+);
 
 
 /* =========================================================
    START
 ========================================================= */
 
-refreshAll();
+loadData();
 
 </script>
 
+
 </body>
+
 </html>
