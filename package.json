@@ -1,12 +1,16 @@
 {
-  "name": "family-tree-system",
+  "name": "boonyaiwong-family-api",
   "version": "1.0.0",
-  "description": "ระบบจัดการข้อมูลผังเครือญาติ",
+  "private": true,
+  "description": "API สำหรับจัดการข้อมูลครอบครัวใน GitHub",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^5.1.0"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }
