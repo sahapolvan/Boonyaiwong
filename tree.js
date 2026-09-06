@@ -1,32 +1,24 @@
-// tree.js - ผังครอบครัว
-// Version: Multi-spouse orthogonal routing
-// เส้นคู่สมรสหลายคนจะแยกกันและหักขึ้นด้านบน
+// tree.js
+// ระบบข้อมูล + Layout + Draw + Geometry
 
-const TreeApp = (function () {
+const TreeCore = (function () {
 
   /* =========================================================
-     ค่าคงที่
+     1. CONSTANTS
   ========================================================= */
 
   const CARD_W = 110;
   const CARD_H = 46;
   const PHOTO_SIZE = 32;
-
   const COUPLE_GAP = 22;
   const LEVEL_H = 130;
   const SIBLING_GAP = 34;
 
-  // ระยะที่เส้นคู่สมรสแต่ละเส้นจะหักขึ้น
-  const MARRIAGE_ROUTE_GAP = 22;
-
   const MALE_COLOR = "#cfe2f3";
   const FEMALE_COLOR = "#f4cccc";
 
-  const LINE_COLOR = "#8d6e63";
-
-
   /* =========================================================
-     State
+     2. STATE
   ========================================================= */
 
   let svg = null;
@@ -37,9 +29,8 @@ const TreeApp = (function () {
   let familyData = null;
   let containerEl = null;
 
-
   /* =========================================================
-     Normalize Data
+     3. DATA
   ========================================================= */
 
   function normalizeFamilyData(rawData) {
@@ -59,50 +50,34 @@ const TreeApp = (function () {
         else if (typeof p.spouse === "string") {
           spouses = p.spouse
             .split("|")
-            .map(s => s.trim())
-            .filter(Boolean);
+            .filter(s => s.trim());
         }
       }
 
       byId[p.id] = {
         ...p,
-
         spouse: spouses,
-
         spouses: [],
-
-        childrenBySpouse: {},
-
-        // รองรับอนาคต
-        // marriageStatus สามารถเป็น:
-        // "current"
-        // "divorced"
-        // "deceased"
-        marriageStatus: p.marriageStatus || {},
-
+        childrenBySpouse: {}
       };
     });
 
 
-    /* เชื่อม spouse */
+    Object.values(byId).forEach(p => {
 
-    Object.values(byId).forEach(person => {
-
-      person.spouse.forEach(spouseId => {
+      p.spouse.forEach(sid => {
 
         if (
-          byId[spouseId] &&
-          !person.spouses.includes(spouseId)
+          byId[sid] &&
+          !p.spouses.includes(sid)
         ) {
-          person.spouses.push(spouseId);
+          p.spouses.push(sid);
         }
 
       });
 
     });
 
-
-    /* เชื่อมพ่อแม่กับลูก */
 
     Object.values(byId).forEach(child => {
 
@@ -117,37 +92,46 @@ const TreeApp = (function () {
         const mother = byId[child.mother];
 
 
-        if (father.spouses.includes(child.mother)) {
+        if (
+          father.spouses.includes(child.mother)
+        ) {
 
-          if (!father.childrenBySpouse[child.mother]) {
+          if (
+            !father.childrenBySpouse[child.mother]
+          ) {
             father.childrenBySpouse[child.mother] = [];
           }
 
-          father.childrenBySpouse[child.mother].push(child.id);
+          father.childrenBySpouse[
+            child.mother
+          ].push(child.id);
+
         }
 
 
-        if (mother.spouses.includes(child.father)) {
+        if (
+          mother.spouses.includes(child.father)
+        ) {
 
-          if (!mother.childrenBySpouse[child.father]) {
+          if (
+            !mother.childrenBySpouse[child.father]
+          ) {
             mother.childrenBySpouse[child.father] = [];
           }
 
-          mother.childrenBySpouse[child.father].push(child.id);
+          mother.childrenBySpouse[
+            child.father
+          ].push(child.id);
+
         }
 
       }
 
     });
 
-
     return byId;
   }
 
-
-  /* =========================================================
-     Build Family Tree
-  ========================================================= */
 
   function buildFamilyTree(rawData, rootIds) {
 
@@ -162,6 +146,7 @@ const TreeApp = (function () {
 
       visited.add(personId);
 
+
       const person = byId[personId];
 
       if (!person) {
@@ -169,7 +154,7 @@ const TreeApp = (function () {
       }
 
 
-      /* ไม่มีคู่ */
+      /* คนโสด */
 
       if (
         !person.spouses ||
@@ -189,18 +174,24 @@ const TreeApp = (function () {
 
       if (person.spouses.length === 1) {
 
-        const spouse = byId[person.spouses[0]];
+        const spouse =
+          byId[person.spouses[0]];
 
         const childIds =
-          person.childrenBySpouse[person.spouses[0]] || [];
+          person.childrenBySpouse[
+            person.spouses[0]
+          ] || [];
+
 
         const children = [];
-
 
         childIds.forEach(cid => {
 
           children.push(
-            ...buildNodes(cid, new Set(visited))
+            ...buildNodes(
+              cid,
+              new Set(visited)
+            )
           );
 
         });
@@ -213,65 +204,17 @@ const TreeApp = (function () {
 
         return [{
           type: "couple",
-
           people: [
             person,
             spouse
           ].filter(Boolean),
-
-          children: children,
-
-          marriageStatus:
-            getMarriageStatus(person, spouse)
+          children
         }];
+
       }
 
 
-      /* =====================================================
-         มีหลายคู่
-      ===================================================== */
-
-      const spouseData = [];
-
-
-      person.spouses.forEach(spouseId => {
-
-        const spouse = byId[spouseId];
-
-        if (!spouse) return;
-
-
-        const childIds =
-          person.childrenBySpouse[spouseId] || [];
-
-        const children = [];
-
-
-        childIds.forEach(cid => {
-
-          children.push(
-            ...buildNodes(cid, new Set(visited))
-          );
-
-        });
-
-
-        spouseData.push({
-
-          spouse: spouse,
-
-          children: children,
-
-          marriageStatus:
-            getMarriageStatus(person, spouse)
-
-        });
-
-
-        visited.add(spouse.id);
-
-      });
-
+      /* มีหลายคู่ */
 
       return [{
 
@@ -279,29 +222,69 @@ const TreeApp = (function () {
 
         people: [
           person,
-          ...spouseData.map(s => s.spouse)
+          ...person.spouses
+            .map(sid => byId[sid])
+            .filter(Boolean)
         ],
 
         anchor: person,
 
-        spouses: spouseData
+        spouses: person.spouses
+          .map(spouseId => {
+
+            const spouse =
+              byId[spouseId];
+
+            const childIds =
+              person.childrenBySpouse[
+                spouseId
+              ] || [];
+
+
+            const children = [];
+
+            childIds.forEach(cid => {
+
+              children.push(
+                ...buildNodes(
+                  cid,
+                  new Set(visited)
+                )
+              );
+
+            });
+
+
+            if (spouse) {
+              visited.add(spouse.id);
+            }
+
+
+            return {
+              spouse,
+              children
+            };
+
+          })
+          .filter(s => s.spouse)
 
       }];
+
     }
 
-
-    /* =====================================================
-       Roots
-    ===================================================== */
 
     let roots = rootIds;
 
 
-    if (!roots || roots.length === 0) {
+    if (
+      !roots ||
+      roots.length === 0
+    ) {
 
       roots = [];
 
-      const includedSpouses = new Set();
+      const includedSpouses =
+        new Set();
 
 
       Object.values(byId)
@@ -313,22 +296,25 @@ const TreeApp = (function () {
 
         .forEach(p => {
 
-          if (!includedSpouses.has(p.id)) {
+          if (
+            !includedSpouses.has(p.id)
+          ) {
 
             roots.push(p.id);
 
             p.spouses.forEach(
-              sid => includedSpouses.add(sid)
+              sid =>
+                includedSpouses.add(sid)
             );
 
           }
 
         });
+
     }
 
 
     const children = [];
-
 
     roots.forEach(rid => {
 
@@ -345,64 +331,16 @@ const TreeApp = (function () {
 
 
     return {
-
       type: "root",
-
       people: [],
-
-      children: children
-
+      children
     };
+
   }
 
 
   /* =========================================================
-     Marriage Status
-  ========================================================= */
-
-  function getMarriageStatus(person, spouse) {
-
-    if (!person || !spouse) {
-      return "current";
-    }
-
-
-    /*
-      รองรับข้อมูลในอนาคต เช่น
-
-      marriageStatus: {
-        "20": "divorced",
-        "25": "current"
-      }
-    */
-
-
-    if (
-      person.marriageStatus &&
-      person.marriageStatus[spouse.id]
-    ) {
-
-      return person.marriageStatus[spouse.id];
-
-    }
-
-
-    if (
-      spouse.marriageStatus &&
-      spouse.marriageStatus[person.id]
-    ) {
-
-      return spouse.marriageStatus[person.id];
-
-    }
-
-
-    return "current";
-  }
-
-
-  /* =========================================================
-     Helper
+     4. HELPERS
   ========================================================= */
 
   function getPhoto(person) {
@@ -413,7 +351,6 @@ const TreeApp = (function () {
     ) {
       return person.photo;
     }
-
 
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(
       person.name
@@ -426,6 +363,7 @@ const TreeApp = (function () {
     return gender === "ช"
       ? MALE_COLOR
       : FEMALE_COLOR;
+
   }
 
 
@@ -436,19 +374,48 @@ const TreeApp = (function () {
         sum +
         c.subtreeW +
         (i > 0 ? SIBLING_GAP : 0),
-
       0
     );
+
+  }
+
+
+  function sortCouple(people) {
+
+    return [...people].sort(
+      (a, b) => {
+
+        if (
+          a.gender === "ญ" &&
+          b.gender === "ช"
+        ) {
+          return -1;
+        }
+
+        if (
+          a.gender === "ช" &&
+          b.gender === "ญ"
+        ) {
+          return 1;
+        }
+
+        return 0;
+
+      }
+    );
+
   }
 
 
   /* =========================================================
-     Layout
+     5. LAYOUT
   ========================================================= */
 
   function measure(node) {
 
-    if (!node) return;
+    if (!node) {
+      return;
+    }
 
 
     if (!node.children) {
@@ -456,7 +423,7 @@ const TreeApp = (function () {
     }
 
 
-    /* Single */
+    /* SINGLE */
 
     if (node.type === "single") {
 
@@ -465,25 +432,25 @@ const TreeApp = (function () {
     }
 
 
-    /* Couple */
+    /* COUPLE */
 
     else if (node.type === "couple") {
 
-      node.children.forEach(c => measure(c));
-
-
-      node.subtreeW = Math.max(
-
-        CARD_W * 2 + COUPLE_GAP,
-
-        childrenWidth(node.children)
-
+      node.children.forEach(
+        c => measure(c)
       );
+
+
+      node.subtreeW =
+        Math.max(
+          CARD_W * 2 + COUPLE_GAP,
+          childrenWidth(node.children)
+        );
 
     }
 
 
-    /* Multi */
+    /* MULTI */
 
     else if (node.type === "multi") {
 
@@ -492,16 +459,18 @@ const TreeApp = (function () {
 
       node.spouses.forEach(s => {
 
-        s.children.forEach(c => measure(c));
-
-
-        s.columnW = Math.max(
-
-          CARD_W,
-
-          childrenWidth(s.children)
-
+        s.children.forEach(
+          c => measure(c)
         );
+
+
+        s.columnW =
+          Math.max(
+            CARD_W,
+            childrenWidth(
+              s.children
+            )
+          );
 
 
         totalW +=
@@ -516,16 +485,22 @@ const TreeApp = (function () {
     }
 
 
-    /* Root */
+    /* ROOT */
 
     else if (node.type === "root") {
 
-      node.children.forEach(c => measure(c));
+      node.children.forEach(
+        c => measure(c)
+      );
+
 
       node.subtreeW =
-        childrenWidth(node.children);
+        childrenWidth(
+          node.children
+        );
 
     }
+
   }
 
 
@@ -537,12 +512,12 @@ const TreeApp = (function () {
 
     const totalW =
       children.reduce(
-
         (sum, c, i) =>
           sum +
           c.subtreeW +
-          (i > 0 ? SIBLING_GAP : 0),
-
+          (i > 0
+            ? SIBLING_GAP
+            : 0),
         0
       );
 
@@ -552,32 +527,40 @@ const TreeApp = (function () {
       totalW / 2;
 
 
-    children.forEach((c, i) => {
+    children.forEach(
+      (c, i) => {
 
-      if (i > 0) {
-        curX += SIBLING_GAP;
+        if (i > 0) {
+          curX += SIBLING_GAP;
+        }
+
+
+        place(
+          c,
+          curX +
+            c.subtreeW / 2,
+          baseY
+        );
+
+
+        curX +=
+          c.subtreeW;
+
       }
+    );
 
-
-      place(
-        c,
-
-        curX +
-        c.subtreeW / 2,
-
-        baseY
-      );
-
-
-      curX += c.subtreeW;
-
-    });
   }
 
 
-  function place(node, x, y) {
+  function place(
+    node,
+    x,
+    y
+  ) {
 
-    if (!node) return;
+    if (!node) {
+      return;
+    }
 
 
     node.x = x;
@@ -587,28 +570,14 @@ const TreeApp = (function () {
     flatNodes.push(node);
 
 
-    /* Single */
+    if (
+      node.type === "single" ||
+      node.type === "couple"
+    ) {
 
-    if (node.type === "single") {
-
-      if (node.children.length > 0) {
-
-        placeChildren(
-          node.children,
-          x,
-          y + LEVEL_H
-        );
-
-      }
-
-    }
-
-
-    /* Couple */
-
-    else if (node.type === "couple") {
-
-      if (node.children.length > 0) {
+      if (
+        node.children.length > 0
+      ) {
 
         placeChildren(
           node.children,
@@ -621,11 +590,9 @@ const TreeApp = (function () {
     }
 
 
-    /* =====================================================
-       Multi spouse
-    ===================================================== */
-
-    else if (node.type === "multi") {
+    else if (
+      node.type === "multi"
+    ) {
 
       node.anchorX =
         x -
@@ -638,30 +605,22 @@ const TreeApp = (function () {
         COUPLE_GAP;
 
 
-      node.spouses.forEach((s, index) => {
+      node.spouses.forEach(s => {
 
         s.x =
           curX +
           s.columnW / 2;
 
-
         s.cardX =
           s.x -
           CARD_W / 2;
 
-
         s.y = y;
 
 
-        /*
-          เก็บ index เอาไว้สำหรับคำนวณ
-          ระดับที่เส้นจะหักขึ้น
-        */
-
-        s.marriageIndex = index;
-
-
-        if (s.children.length > 0) {
+        if (
+          s.children.length > 0
+        ) {
 
           placeChildren(
             s.children,
@@ -681,9 +640,9 @@ const TreeApp = (function () {
     }
 
 
-    /* Root */
-
-    else if (node.type === "root") {
+    else if (
+      node.type === "root"
+    ) {
 
       placeChildren(
         node.children,
@@ -692,11 +651,12 @@ const TreeApp = (function () {
       );
 
     }
+
   }
 
 
   /* =========================================================
-     Draw Tree
+     6. DRAW TREE
   ========================================================= */
 
   function drawTree(
@@ -706,26 +666,26 @@ const TreeApp = (function () {
   ) {
 
     containerEl =
-      document.getElementById(containerId);
+      document.getElementById(
+        containerId
+      );
 
 
     if (!containerEl) {
-
       console.error(
         "Tree container not found:",
         containerId
       );
-
       return;
     }
 
 
-    if (typeof d3 === "undefined") {
-
+    if (
+      typeof d3 === "undefined"
+    ) {
       console.error(
         "D3.js is not loaded"
       );
-
       return;
     }
 
@@ -734,11 +694,6 @@ const TreeApp = (function () {
       !rawData ||
       !rawData.length
     ) {
-
-      updateStatsText(
-        "ไม่พบข้อมูล"
-      );
-
       return;
     }
 
@@ -755,13 +710,9 @@ const TreeApp = (function () {
 
     catch (err) {
 
-      updateStatsText(
-        "สร้างผังไม่สำเร็จ"
-      );
-
       console.error(err);
-
       return;
+
     }
 
 
@@ -774,54 +725,40 @@ const TreeApp = (function () {
 
 
     if (height < 50) {
-
       height =
         window.innerHeight - 200;
-
     }
 
 
     if (width < 50) {
-
       width =
         window.innerWidth;
-
     }
 
 
-    /* SVG */
-
     svg =
-      d3.select("#" + containerId)
-
-        .append("svg")
-
-        .attr("width", width)
-
-        .attr("height", height)
-
-        .attr("id", "treeSvg")
-
-        .style(
-          "cursor",
-          "grab"
-        );
+      d3.select(
+        "#" + containerId
+      )
+      .append("svg")
+      .attr("width", width)
+      .attr("height", height)
+      .attr("id", "treeSvg")
+      .style(
+        "cursor",
+        "grab"
+      );
 
 
-    g =
-      svg.append("g");
+    g = svg.append("g");
 
-
-    /* Zoom */
 
     zoomHandler =
       d3.zoom()
-
         .scaleExtent([
           0.1,
           2
         ])
-
         .on(
           "zoom",
           e =>
@@ -852,50 +789,32 @@ const TreeApp = (function () {
     );
 
 
-    /*
-      สำคัญ:
-      เส้นถูกวาดก่อน node
-      เพื่อให้ node อยู่ด้านบน
-    */
-
     drawLinks();
-
     drawMarriageLines();
-
     drawHearts();
-
     drawNodes();
 
-
-    fitToScreen();
-
-    updateStats();
   }
 
 
   /* =========================================================
-     Parent → Child Links
+     7. LINKS
   ========================================================= */
 
   function drawLinks() {
 
     g.selectAll(".link")
-
       .data(
         flatNodes.filter(
           d => d.type !== "root"
         )
       )
-
       .enter()
-
       .append("path")
-
       .attr(
         "class",
         "link"
       )
-
       .attr(
         "d",
         d => {
@@ -907,13 +826,16 @@ const TreeApp = (function () {
             CARD_H / 2;
 
 
-          if (d.type === "single") {
+          if (
+            d.type === "single"
+          ) {
 
-            path += childLine(
-              d.x,
-              fromY,
-              d.children
-            );
+            path +=
+              childLine(
+                d.x,
+                fromY,
+                d.children
+              );
 
           }
 
@@ -926,11 +848,12 @@ const TreeApp = (function () {
               marriageMidX(d);
 
 
-            path += childLine(
-              midX,
-              fromY,
-              d.children
-            );
+            path +=
+              childLine(
+                midX,
+                fromY,
+                d.children
+              );
 
           }
 
@@ -939,26 +862,23 @@ const TreeApp = (function () {
             d.type === "multi"
           ) {
 
-            /*
-              ลูกของแต่ละคู่
-              ยังคงใช้จุดกลางของคู่
-            */
-
             d.spouses.forEach(
               s => {
 
                 const midX =
-                  marriageConnectionX(
-                    d,
-                    s
+                  (
+                    d.anchorX +
+                    CARD_W +
+                    s.cardX
+                  ) / 2;
+
+
+                path +=
+                  childLine(
+                    midX,
+                    fromY,
+                    s.children
                   );
-
-
-                path += childLine(
-                  midX,
-                  fromY,
-                  s.children
-                );
 
               }
             );
@@ -967,325 +887,120 @@ const TreeApp = (function () {
 
 
           return path;
+
         }
       );
+
   }
 
 
-  /* =========================================================
-     Marriage Lines
-     
-     ⭐ จุดที่แก้หลัก
-     
-     แต่ละคู่จะมี PATH ของตัวเอง
-     
-     รูปแบบ:
-     
-     [แก้ว] ───────┐
-                   │
-                   └──────── [น็อต]
-     
-     ไม่ใช้เส้นเดียวกัน
-  ========================================================= */
-
   function drawMarriageLines() {
-
-    const marriageData = [];
-
-
-    flatNodes.forEach(node => {
-
-      /* คู่เดียว */
-
-      if (
-        node.type === "couple"
-      ) {
-
-        if (
-          node.people.length >= 2
-        ) {
-
-          marriageData.push({
-
-            node: node,
-
-            personA: node.people[0],
-
-            personB: node.people[1],
-
-            status:
-              node.marriageStatus ||
-              "current",
-
-            index: 0
-
-          });
-
-        }
-
-      }
-
-
-      /* หลายคู่ */
-
-      else if (
-        node.type === "multi"
-      ) {
-
-        node.spouses.forEach(
-          (s, index) => {
-
-            marriageData.push({
-
-              node: node,
-
-              personA:
-                node.anchor,
-
-              personB:
-                s.spouse,
-
-              spouseData: s,
-
-              status:
-                s.marriageStatus ||
-                "current",
-
-              index: index
-
-            });
-
-          }
-        );
-
-      }
-
-    });
-
 
     g.selectAll(
       ".marriage-line"
     )
-
-      .data(marriageData)
-
-      .enter()
-
-      .append("path")
-
-      .attr(
-        "class",
-        "marriage-line"
-      )
-
-      .attr(
-        "fill",
-        "none"
-      )
-
-      .attr(
-        "stroke",
-        LINE_COLOR
-      )
-
-      .attr(
-        "stroke-width",
-        2
-      )
-
-      .attr(
-        "stroke-dasharray",
+    .data(
+      flatNodes.filter(
         d =>
-          isDivorced(d.status)
-            ? "7,5"
-            : null
+          d.type === "couple" ||
+          d.type === "multi"
       )
+    )
+    .enter()
+    .append("path")
+    .attr(
+      "class",
+      "marriage-line"
+    )
+    .attr(
+      "d",
+      d => {
 
-      .attr(
-        "d",
-        d =>
-          createMarriagePath(d)
-      );
-  }
+        let path = "";
 
-
-  /* =========================================================
-     สร้างเส้นคู่สมรส
-     
-     หักด้านบน
-  ========================================================= */
-
-  function createMarriagePath(data) {
-
-    const node =
-      data.node;
+        const y =
+          d.y +
+          CARD_H / 2;
 
 
-    const y =
-      node.y +
-      CARD_H / 2;
+        if (
+          d.type === "couple"
+        ) {
+
+          const leftX =
+            d.x -
+            (CARD_W +
+              COUPLE_GAP) /
+              2 +
+            CARD_W;
 
 
-    /* =====================================================
-       คู่เดียว
-       
-       ใช้เส้นตรงถ้าไม่มีสิ่งกีดขวาง
-    ===================================================== */
-
-    if (
-      node.type === "couple"
-    ) {
-
-      const sorted =
-        sortCouple(
-          node.people
-        );
+          const rightX =
+            d.x +
+            (CARD_W +
+              COUPLE_GAP) /
+              2 -
+            CARD_W;
 
 
-      const leftX =
-        node.x -
-        (CARD_W + COUPLE_GAP) / 2 +
-        CARD_W;
+          path +=
+            `M${leftX},${y} L${rightX},${y}`;
+
+        }
 
 
-      const rightX =
-        node.x +
-        (CARD_W + COUPLE_GAP) / 2 -
-        CARD_W;
+        else if (
+          d.type === "multi"
+        ) {
+
+          d.spouses.forEach(
+            s => {
+
+              const anchorRight =
+                d.anchorX +
+                CARD_W;
 
 
-      return `
-        M${leftX},${y}
-        L${rightX},${y}
-      `;
-    }
+              const spouseLeft =
+                s.cardX;
 
 
-    /* =====================================================
-       หลายคู่
-       
-       ⭐ ทุกคู่แยก PATH
-       ⭐ หักขึ้นด้านบน
-    ===================================================== */
+              path +=
+                `M${anchorRight},${y} L${spouseLeft},${y}`;
 
-    if (
-      node.type === "multi" &&
-      data.spouseData
-    ) {
+            }
+          );
 
-      const spouse =
-        data.spouseData;
+        }
 
 
-      const anchorRight =
-        node.anchorX +
-        CARD_W;
+        return path;
 
-
-      const spouseLeft =
-        spouse.cardX;
-
-
-      /*
-        แต่ละคู่ใช้ระดับ Y
-        ของตัวเอง
-
-        คู่แรก:
-        y - 22
-
-        คู่สอง:
-        y - 44
-
-        คู่สาม:
-        y - 66
-
-        ทำให้เส้นไม่ทับกัน
-      */
-
-      const routeY =
-        y -
-        MARRIAGE_ROUTE_GAP *
-        (data.index + 1);
-
-
-      /*
-        เส้น:
-
-        anchor
-           │
-           └──────── spouse
-
-        แต่เนื่องจากเราต้องการ
-        ให้เส้นหักขึ้นด้านบน
-        จึงเป็น:
-
-        [แก้ว]────────┐
-                      │
-                      └────────[น็อต]
-      */
-
-      return `
-        M${anchorRight},${y}
-        L${anchorRight},${routeY}
-        L${spouseLeft},${routeY}
-        L${spouseLeft},${y}
-      `;
-    }
-
-
-    return "";
-  }
-
-
-  /* =========================================================
-     ตรวจสถานะหย่า
-  ========================================================= */
-
-  function isDivorced(status) {
-
-    return (
-      status === "divorced" ||
-      status === "หย่า" ||
-      status === "divorce"
+      }
     );
+
   }
 
-
-  /* =========================================================
-     Hearts
-  ========================================================= */
 
   function drawHearts() {
 
-    /*
-      ตอนนี้หัวใจจะแสดงเฉพาะคู่เดียว
-      เพราะกรณีหลายคู่ เส้นแยกกันแล้ว
-      ไม่ควรวางหัวใจทับกัน
-    */
-
     g.selectAll(".heart")
-
       .data(
         flatNodes.filter(
           d =>
             d.type === "couple"
         )
       )
-
       .enter()
-
       .append("text")
-
       .attr(
         "class",
         "heart"
       )
-
       .attr(
         "text-anchor",
         "middle"
       )
-
       .attr(
         "y",
         d =>
@@ -1293,18 +1008,15 @@ const TreeApp = (function () {
           CARD_H / 2 +
           4
       )
-
       .attr(
         "x",
         d =>
           marriageMidX(d)
       )
-
       .text("❤");
+
   }
-/* =========================================================
-     Draw Nodes
-  ========================================================= */
+
 
   function drawNodes() {
 
@@ -1312,32 +1024,18 @@ const TreeApp = (function () {
       g.selectAll(
         ".node-group"
       )
-
       .data(
         flatNodes.filter(
           d =>
             d.type !== "root"
         )
       )
-
       .enter()
-
       .append("g")
-
       .attr(
         "class",
         "node-group"
       )
-
-      .attr(
-        "id",
-        d =>
-          "node-" +
-          d.people
-            .map(p => p.name)
-            .join("-")
-      )
-
       .on(
         "click",
         (e, d) =>
@@ -1352,27 +1050,20 @@ const TreeApp = (function () {
           d3.select(this);
 
 
-        /* Single */
-
         if (
           d.type === "single"
         ) {
 
           drawPersonCard(
             el,
-
             d.x -
               CARD_W / 2,
-
             d.y,
-
             d.people[0]
           );
 
         }
 
-
-        /* Couple */
 
         else if (
           d.type === "couple"
@@ -1385,52 +1076,35 @@ const TreeApp = (function () {
 
 
           drawPersonCard(
-
             el,
-
             d.x -
               CARD_W -
               COUPLE_GAP / 2,
-
             d.y,
-
             sorted[0]
-
           );
 
 
           drawPersonCard(
-
             el,
-
             d.x +
               COUPLE_GAP / 2,
-
             d.y,
-
             sorted[1]
-
           );
 
         }
 
-
-        /* Multi */
 
         else if (
           d.type === "multi"
         ) {
 
           drawPersonCard(
-
             el,
-
             d.anchorX,
-
             d.y,
-
             d.anchor
-
           );
 
 
@@ -1438,15 +1112,10 @@ const TreeApp = (function () {
             s => {
 
               drawPersonCard(
-
                 el,
-
                 s.cardX,
-
                 s.y,
-
                 s.spouse
-
               );
 
             }
@@ -1456,12 +1125,9 @@ const TreeApp = (function () {
 
       }
     );
+
   }
 
-
-  /* =========================================================
-     Person Card
-  ========================================================= */
 
   function drawPersonCard(
     el,
@@ -1472,7 +1138,6 @@ const TreeApp = (function () {
 
     const card =
       el.append("g")
-
         .attr(
           "transform",
           `translate(${x},${y})`
@@ -1480,44 +1145,36 @@ const TreeApp = (function () {
 
 
     card.append("rect")
-
       .attr(
         "class",
         "person-bg"
       )
-
       .attr(
         "x",
         0
       )
-
       .attr(
         "y",
         0
       )
-
       .attr(
         "width",
         CARD_W
       )
-
       .attr(
         "height",
         CARD_H
       )
-
       .attr(
         "fill",
         genderColor(
           person.gender
         )
       )
-
       .attr(
         "rx",
         999
       )
-
       .attr(
         "ry",
         999
@@ -1525,42 +1182,34 @@ const TreeApp = (function () {
 
 
     card.append("image")
-
       .attr(
         "class",
         "person-photo"
       )
-
       .attr(
         "x",
         7
       )
-
       .attr(
         "y",
         7
       )
-
       .attr(
         "width",
         PHOTO_SIZE
       )
-
       .attr(
         "height",
         PHOTO_SIZE
       )
-
       .attr(
         "href",
         getPhoto(person)
       )
-
       .attr(
         "clip-path",
         "circle(50%)"
       )
-
       .attr(
         "preserveAspectRatio",
         "xMidYMid slice"
@@ -1568,82 +1217,42 @@ const TreeApp = (function () {
 
 
     card.append("text")
-
       .attr(
         "class",
         "person-name"
       )
-
       .attr(
         "x",
         7 +
-        PHOTO_SIZE +
-        8
+          PHOTO_SIZE +
+          8
       )
-
       .attr(
         "y",
         CARD_H / 2
       )
-
       .text(
         person.name || ""
       );
+
   }
 
 
   /* =========================================================
-     Geometry
+     8. GEOMETRY
   ========================================================= */
 
-  function sortCouple(
-    people
-  ) {
-
-    return [
-      ...people
-    ].sort(
-      (a, b) => {
-
-        if (
-          a.gender === "ญ" &&
-          b.gender === "ช"
-        ) {
-          return -1;
-        }
-
-
-        if (
-          a.gender === "ช" &&
-          b.gender === "ญ"
-        ) {
-          return 1;
-        }
-
-
-        return 0;
-
-      }
-    );
-  }
-
-
-  function childTargetPoint(
-    node
-  ) {
+  function childTargetPoint(node) {
 
     if (
       node.type === "single"
     ) {
 
       return {
-
         x: node.x,
-
         y:
           node.y +
           CARD_H / 2
-
       };
 
     }
@@ -1694,13 +1303,10 @@ const TreeApp = (function () {
 
 
       return {
-
-        x: x,
-
+        x,
         y:
           node.y +
           CARD_H / 2
-
       };
 
     }
@@ -1711,7 +1317,6 @@ const TreeApp = (function () {
     ) {
 
       return {
-
         x:
           node.anchorX +
           CARD_W / 2,
@@ -1719,27 +1324,22 @@ const TreeApp = (function () {
         y:
           node.y +
           CARD_H / 2
-
       };
 
     }
 
 
     return {
-
       x: node.x,
-
       y:
         node.y +
         CARD_H / 2
-
     };
+
   }
 
 
-  function marriageMidX(
-    node
-  ) {
+  function marriageMidX(node) {
 
     if (
       node.type === "couple"
@@ -1761,38 +1361,9 @@ const TreeApp = (function () {
 
 
     return node.x;
+
   }
 
-
-  /*
-    จุดเชื่อมสำหรับลูกของแต่ละคู่
-  */
-
-  function marriageConnectionX(
-    node,
-    spouseData
-  ) {
-
-    const anchorRight =
-      node.anchorX +
-      CARD_W;
-
-
-    const spouseLeft =
-      spouseData.cardX;
-
-
-    return (
-      anchorRight +
-      (spouseLeft -
-        anchorRight) / 2
-    );
-  }
-
-
-  /* =========================================================
-     Parent → Child Line
-  ========================================================= */
 
   function childLine(
     fromX,
@@ -1811,12 +1382,13 @@ const TreeApp = (function () {
     const midY =
       fromY +
       (LEVEL_H -
-        CARD_H) / 2;
+        CARD_H) /
+        2;
 
 
     let path =
-      `M${fromX},${fromY}
-       L${fromX},${midY}`;
+      `M${fromX},${fromY} ` +
+      `L${fromX},${midY} `;
 
 
     children.forEach(
@@ -1827,1079 +1399,87 @@ const TreeApp = (function () {
 
 
         path +=
-          `M${fromX},${midY}
-           L${p.x},${midY}
-           L${p.x},${p.y}`;
+          `M${fromX},${midY} ` +
+          `L${p.x},${midY} ` +
+          `L${p.x},${p.y} `;
 
       }
     );
 
 
     return path;
+
   }
 
 
   /* =========================================================
-     View Control
+     PUBLIC CORE API
   ========================================================= */
 
-  function fitToScreen() {
-
-    if (
-      !svg ||
-      !containerEl
-    ) {
-      return;
-    }
-
-
-    const width =
-      containerEl.clientWidth;
-
-
-    let minX = 0;
-    let maxX = 0;
-    let maxY = 0;
-
-
-    flatNodes.forEach(
-      d => {
-
-        if (
-          d.type === "multi"
-        ) {
-
-          minX =
-            Math.min(
-              minX,
-              d.anchorX - 20
-            );
-
-
-          const last =
-            d.spouses[
-              d.spouses.length - 1
-            ];
-
-
-          maxX =
-            Math.max(
-              maxX,
-              last.cardX +
-              CARD_W +
-              20
-            );
-
-        }
-
-
-        else if (
-          d.type === "couple"
-        ) {
-
-          minX =
-            Math.min(
-              minX,
-              d.x -
-              CARD_W -
-              COUPLE_GAP / 2 -
-              20
-            );
-
-
-          maxX =
-            Math.max(
-              maxX,
-              d.x +
-              CARD_W +
-              COUPLE_GAP / 2 +
-              20
-            );
-
-        }
-
-
-        else {
-
-          minX =
-            Math.min(
-              minX,
-              d.x -
-              CARD_W / 2 -
-              20
-            );
-
-
-          maxX =
-            Math.max(
-              maxX,
-              d.x +
-              CARD_W / 2 +
-              20
-            );
-
-        }
-
-
-        /*
-          เผื่อพื้นที่ด้านบน
-          สำหรับเส้นที่หักขึ้น
-        */
-
-        if (
-          d.type === "multi"
-        ) {
-
-          maxY =
-            Math.max(
-              maxY,
-              d.y +
-              CARD_H +
-              50
-            );
-
-        }
-
-        else {
-
-          maxY =
-            Math.max(
-              maxY,
-              d.y +
-              CARD_H +
-              50
-            );
-
-        }
-
-      }
-    );
-
-
-    const treeW =
-      maxX -
-      minX;
-
-
-    const scale =
-      Math.min(
-
-        0.75,
-
-        width /
-        Math.max(
-          treeW,
-          width * 0.4
-        )
-
-      );
-
-
-    const tx =
-      width / 2 -
-      (
-        minX +
-        treeW / 2
-      ) *
-      scale;
-
-
-    const ty = 50;
-
-
-    svg.call(
-
-      zoomHandler.transform,
-
-      d3.zoomIdentity
-
-        .translate(
-          tx,
-          ty
-        )
-
-        .scale(scale)
-
-    );
-  }
-
-
-  function zoom(
-    amount
-  ) {
-
-    if (!svg) return;
-
-
-    svg.transition()
-
-      .duration(250)
-
-      .call(
-        zoomHandler.scaleBy,
-        1 + amount
-      );
-  }
-
-
-  function resetZoom() {
-
-    if (!containerEl) {
-      return;
-    }
-
-
-    clear();
-
-
-    drawTree(
-
-      containerEl.id,
-
-      window.familyRawData,
-
-      ["1"]
-
-    );
-  }
-
-
-  function centerNode(d) {
-
-    if (
-      !svg ||
-      !containerEl
-    ) {
-      return;
-    }
-
-
-    let cx = d.x;
-
-
-    if (
-      d.type === "multi"
-    ) {
-
-      cx =
-        d.anchorX +
-        CARD_W / 2;
-
-    }
-
-
-    const t =
-      d3.zoomIdentity
-
-        .translate(
-
-          containerEl.clientWidth / 2 -
-          cx * 1.1,
-
-          containerEl.clientHeight / 2 -
-          d.y * 1.1
-
-        )
-
-        .scale(1.1);
-
-
-    svg.transition()
-
-      .duration(600)
-
-      .call(
-        zoomHandler.transform,
-        t
-      );
-  }
-
-
-  /* =========================================================
-     Search
-  ========================================================= */
-
-  function searchNode(
-    query
-  ) {
-
-    if (
-      !flatNodes.length
-    ) {
-      return;
-    }
-
-
-    d3.selectAll(
-      ".node-group"
-    )
-      .classed(
-        "dim highlight",
-        false
-      );
-
-
-    const q =
-      (
-        query || ""
-      )
-        .trim()
-        .toLowerCase();
-
-
-    if (!q) {
-      return;
-    }
-
-
-    let found = null;
-
-
-    d3.selectAll(
-      ".node-group"
-    )
-      .each(
-        function(d) {
-
-          const names =
-            d.people
-              .map(
-                p => p.name
-              )
-              .join(" ");
-
-
-          const match =
-            names
-              .toLowerCase()
-              .includes(q);
-
-
-          d3.select(this)
-
-            .classed(
-              "highlight",
-              match
-            )
-
-            .classed(
-              "dim",
-              !match
-            );
-
-
-          if (
-            match &&
-            !found
-          ) {
-
-            found = d;
-
-          }
-
-        }
-      );
-
-
-    if (found) {
-
-      centerNode(
-        found
-      );
-
-    }
-  }
-
-
-  /* =========================================================
-     Clear
-  ========================================================= */
-
-  function clear() {
-
-    if (svg) {
-
-      svg.remove();
-
-      svg = null;
-
-      g = null;
-
-    }
-
-
-    flatNodes = [];
-
-    familyData = null;
-  }
-
-
-  /* =========================================================
-     Stats
-  ========================================================= */
-
-  function updateStats() {
-
-    if (!familyData) {
-      return;
-    }
-
-
-    const uniqueIds =
-      new Set();
-
-
-    let maxDepth = 0;
-
-
-    function traverse(
-      node,
-      depth
-    ) {
-
-      if (!node) {
-        return;
-      }
-
-
-      node.people.forEach(
-        p =>
-          uniqueIds.add(
-            p.id
-          )
-      );
-
-
-      if (
-        depth >
-        maxDepth
-      ) {
-
-        maxDepth =
-          depth;
-
-      }
-
-
-      if (
-        node.type ===
-        "multi"
-      ) {
-
-        node.spouses.forEach(
-          s =>
-            s.children.forEach(
-              c =>
-                traverse(
-                  c,
-                  depth + 1
-                )
-            )
-        );
-
-      }
-
-
-      else if (
-        node.children
-      ) {
-
-        node.children.forEach(
-          c =>
-            traverse(
-              c,
-              depth + 1
-            )
-        );
-
-      }
-
-    }
-
-
-    traverse(
-      familyData,
-      0
-    );
-
-
-    updateStatsText(
-
-      `${maxDepth + 1} รุ่น · ${uniqueIds.size} สมาชิก`
-
-    );
-  }
-
-
-  function updateStatsText(
-    text
-  ) {
-
-    const el =
-      document.getElementById(
-        "stats"
-      );
-
-
-    if (el) {
-      el.textContent =
-        text;
-    }
-  }
-  /* =========================================================
-     Export
-  ========================================================= */
-
-  function getTreeBounds() {
-
-    if (
-      !flatNodes.length
-    ) {
-
-      return {
-
-        minX: 0,
-        maxX: 0,
-        minY: 0,
-        maxY: 0
-
-      };
-
-    }
-
-
-    let minX = Infinity;
-    let maxX = -Infinity;
-    let minY = Infinity;
-    let maxY = -Infinity;
-
-
-    flatNodes.forEach(
-      d => {
-
-        let left;
-        let right;
-
-        let top =
-          d.y;
-
-        let bottom =
-          d.y +
-          CARD_H;
-
-
-        if (
-          d.type === "multi"
-        ) {
-
-          left =
-            d.anchorX;
-
-
-          const last =
-            d.spouses[
-              d.spouses.length - 1
-            ];
-
-
-          right =
-            last
-              ? last.cardX +
-                CARD_W
-              : left +
-                CARD_W;
-
-
-          /*
-            เผื่อเส้นหักขึ้น
-          */
-
-          const routeTop =
-            d.y -
-            (
-              d.spouses.length *
-              MARRIAGE_ROUTE_GAP
-            ) -
-            20;
-
-
-          top =
-            Math.min(
-              top,
-              routeTop
-            );
-
-        }
-
-
-        else if (
-          d.type === "couple"
-        ) {
-
-          left =
-            d.x -
-            CARD_W -
-            COUPLE_GAP / 2;
-
-
-          right =
-            d.x +
-            CARD_W +
-            COUPLE_GAP / 2;
-
-        }
-
-
-        else {
-
-          left =
-            d.x -
-            CARD_W / 2;
-
-
-          right =
-            d.x +
-            CARD_W / 2;
-
-        }
-
-
-        let deepest =
-          bottom;
-
-
-        function findDeep(
-          node
-        ) {
-
-          if (!node) {
-            return;
-          }
-
-
-          if (
-            node.y +
-            CARD_H >
-            deepest
-          ) {
-
-            deepest =
-              node.y +
-              CARD_H;
-
-          }
-
-
-          if (
-            node.type ===
-            "multi"
-          ) {
-
-            node.spouses.forEach(
-              s =>
-                s.children.forEach(
-                  findDeep
-                )
-            );
-
-          }
-
-
-          else if (
-            node.children
-          ) {
-
-            node.children.forEach(
-              findDeep
-            );
-
-          }
-
-        }
-
-
-        findDeep(d);
-
-
-        minX =
-          Math.min(
-            minX,
-            left - 20
-          );
-
-
-        maxX =
-          Math.max(
-            maxX,
-            right + 20
-          );
-
-
-        minY =
-          Math.min(
-            minY,
-            top - 20
-          );
-
-
-        maxY =
-          Math.max(
-            maxY,
-            deepest + 40
-          );
-
-      }
-    );
-
-
-    return {
-
-      minX,
-      maxX,
-      minY,
-      maxY
-
-    };
-  }
-
-
-  /* =========================================================
-     Export Image
-  ========================================================= */
-
-  function exportImage(
-    format
-  ) {
-
-    if (
-      typeof html2canvas ===
-      "undefined"
-    ) {
-
-      alert(
-        "กำลังโหลดตัวสร้างภาพ กรุณารอสักครู่แล้วลองอีกครั้ง"
-      );
-
-      return;
-    }
-
-
-    const bounds =
-      getTreeBounds();
-
-
-    const treeWidth =
-      bounds.maxX -
-      bounds.minX;
-
-
-    const treeHeight =
-      bounds.maxY -
-      bounds.minY;
-
-
-    if (
-      treeWidth <= 0 ||
-      treeHeight <= 0
-    ) {
-
-      alert(
-        "ไม่พบผังสำหรับบันทึก"
-      );
-
-      return;
-    }
-
-
-    const originalTransform =
-      d3.zoomTransform(
-        svg.node()
-      );
-
-
-    const scale =
-      Math.min(
-
-        containerEl.clientWidth /
-          treeWidth,
-
-        containerEl.clientHeight /
-          treeHeight
-
-      ) *
-      0.92;
-
-
-    const tx =
-      containerEl.clientWidth / 2 -
-      (
-        bounds.minX +
-        treeWidth / 2
-      ) *
-      scale;
-
-
-    const ty =
-      containerEl.clientHeight / 2 -
-      (
-        bounds.minY +
-        treeHeight / 2
-      ) *
-      scale;
-
-
-    svg.call(
-
-      zoomHandler.transform,
-
-      d3.zoomIdentity
-
-        .translate(
-          tx,
-          ty
-        )
-
-        .scale(scale)
-
-    );
-
-
-    setTimeout(
-      () => {
-
-        html2canvas(
-          containerEl,
-          {
-
-            backgroundColor:
-              "#f6f3ed",
-
-            scale: 2,
-
-            useCORS: true,
-
-            allowTaint: true,
-
-            logging: false
-
-          }
-
-        )
-
-          .then(
-            canvas => {
-
-              svg.call(
-
-                zoomHandler.transform,
-
-                originalTransform
-
-              );
-
-
-              if (
-                format === "png" ||
-                format === "jpg"
-              ) {
-
-                const mime =
-                  format === "jpg"
-                    ? "image/jpeg"
-                    : "image/png";
-
-
-                const link =
-                  document.createElement(
-                    "a"
-                  );
-
-
-                link.download =
-                  `family-tree.${format}`;
-
-
-                link.href =
-                  canvas.toDataURL(
-                    mime,
-                    0.95
-                  );
-
-
-                link.click();
-
-              }
-
-
-              else if (
-                format === "pdf"
-              ) {
-
-                const {
-                  jsPDF
-                } =
-                  window.jspdf;
-
-
-                const imgData =
-                  canvas.toDataURL(
-                    "image/png"
-                  );
-
-
-                const pdf =
-                  new jsPDF({
-
-                    orientation:
-                      treeWidth >
-                      treeHeight
-                        ? "landscape"
-                        : "portrait",
-
-                    unit: "mm",
-
-                    format: "a4"
-
-                  });
-
-
-                const pageWidth =
-                  pdf.internal
-                    .pageSize
-                    .getWidth();
-
-
-                const pageHeight =
-                  pdf.internal
-                    .pageSize
-                    .getHeight();
-
-
-                const ratio =
-                  Math.min(
-
-                    pageWidth /
-                      canvas.width,
-
-                    pageHeight /
-                      canvas.height
-
-                  );
-
-
-                const imgW =
-                  canvas.width *
-                  ratio;
-
-
-                const imgH =
-                  canvas.height *
-                  ratio;
-
-
-                const x =
-                  (
-                    pageWidth -
-                    imgW
-                  ) / 2;
-
-
-                const y =
-                  (
-                    pageHeight -
-                    imgH
-                  ) / 2;
-
-
-                pdf.addImage(
-
-                  imgData,
-
-                  "PNG",
-
-                  x,
-                  y,
-
-                  imgW,
-                  imgH
-
-                );
-
-
-                pdf.save(
-                  "family-tree.pdf"
-                );
-
-              }
-
-            }
-          )
-
-          .catch(
-            err => {
-
-              svg.call(
-
-                zoomHandler.transform,
-
-                originalTransform
-
-              );
-
-
-              console.error(
-                err
-              );
-
-
-              alert(
-                "บันทึกไม่สำเร็จ อาจเกิดจากรูปภาพภายนอกถูกบล็อก CORS"
-              );
-
-            }
-          );
-
-      },
-
-      350
-    );
-  }
-
-
-  /* =========================================================
-     Public API
-  ========================================================= */
-
+  
   return {
 
-    init:
-      function(
-        containerId,
-        rawData,
-        rootIds
-      ) {
+    drawTree,
+    normalizeFamilyData,
+    buildFamilyTree,
 
-        clear();
+    getPhoto,
+    genderColor,
+    childrenWidth,
+    sortCouple,
 
-        drawTree(
-          containerId,
-          rawData,
-          rootIds
-        );
+    measure,
+    placeChildren,
+    place,
 
-      },
+    drawLinks,
+    drawMarriageLines,
+    drawHearts,
+    drawNodes,
+    drawPersonCard,
 
-    zoom:
-      zoom,
+    childTargetPoint,
+    marriageMidX,
+    childLine,
 
-    resetZoom:
-      resetZoom,
+    getState: function() {
 
-    search:
-      searchNode,
+      return {
+        svg,
+        g,
+        zoomHandler,
+        flatNodes,
+        familyData,
+        containerEl
+      };
 
-    exportImage:
-      exportImage
+    },
+
+    setState: function(state) {
+
+      if ("svg" in state)
+        svg = state.svg;
+
+      if ("g" in state)
+        g = state.g;
+
+      if ("zoomHandler" in state)
+        zoomHandler =
+          state.zoomHandler;
+
+      if ("flatNodes" in state)
+        flatNodes =
+          state.flatNodes;
+
+      if ("familyData" in state)
+        familyData =
+          state.familyData;
+
+      if ("containerEl" in state)
+        containerEl =
+          state.containerEl;
+
+    }
 
   };
 
