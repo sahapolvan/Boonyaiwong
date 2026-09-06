@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Family Member Manager</title>
+<script src="data.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap');
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-1: #0f172a;
+  --bg-2: #1e293b;
+  --glass: rgba(255,255,255,0.08);
+  --border: rgba(255,255,255,0.12);
+  --text: #f8fafc;
+  --muted: #94a3b8;
+  --accent: #38bdf8;
+  --accent-2: #818cf8;
+  --male: #60a5fa;
+  --female: #f472b6;
+  --danger: #ef4444;
+  --success: #22c55e;
+}
+
+body {
+  font-family: 'Kanit', sans-serif;
+  background: linear-gradient(135deg, var(--bg-1) 0%, #312e81 50%, var(--bg-2) 100%);
+  min-height: 100vh;
+  color: var(--text);
+}
+
+.app {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+.logo {
+  font-size: 36px;
+  font-weight: 600;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.stat-box {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 22px;
+  text-align: center;
+  backdrop-filter: blur(10px);
+}
+
+.stat-number {
+  font-size: 32px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.stat-label {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.card {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 28px;
+  margin-bottom: 24px;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+
+.card-title {
+  font-size: 18px;
+  font-weight: 500;
+  margin-bottom: 22px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.form-group {
+  margin-bottom: 4px;
+}
+
+.form-group.full {
+  grid-column: 1 / -1;
+}
+
+label {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+input, select {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,0.2);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 15px;
+  outline: none;
+  transition: 0.2s;
+}
+
+input:focus, select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(56,189,248,0.12);
+}
+
+.gender-options {
+  display: flex;
+  gap: 12px;
+}
+
+.gender-btn {
+  flex: 1;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,0.2);
+  color: var(--muted);
+  cursor: pointer;
+  transition: 0.2s;
+  font-size: 15px;
+  font-family: inherit;
+}
+
+.gender-btn.active.male {
+  background: rgba(96,165,250,0.18);
+  border-color: var(--male);
+  color: var(--male);
+}
+
+.gender-btn.active.female {
+  background: rgba(244,114,182,0.18);
+  border-color: var(--female);
+  color: var(--female);
+}
+
+.btn-group {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.btn {
+  flex: 1;
+  padding: 15px 24px;
+  border-radius: 14px;
+  border: none;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.btn-primary {
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  color: #fff;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(56,189,248,0.3);
+}
+
+.btn-secondary {
+  background: rgba(255,255,255,0.06);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+  background: rgba(255,255,255,0.12);
+  color: var(--text);
+}
+
+.btn-danger {
+  background: rgba(239,68,68,0.12);
+  color: var(--danger);
+  border: 1px solid rgba(239,68,68,0.25);
+}
+
+.btn-danger:hover {
+  background: rgba(239,68,68,0.22);
+}
+
+.members-list {
+  display: grid;
+  gap: 12px;
+}
+
+.member-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: rgba(0,0,0,0.18);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.member-item:hover, .member-item.active {
+  border-color: var(--accent);
+  background: rgba(56,189,248,0.08);
+}
+
+.member-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.member-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.member-icon.male { background: rgba(96,165,250,0.18); color: var(--male); }
+.member-icon.female { background: rgba(244,114,182,0.18); color: var(--female); }
+
+.member-name {
+  font-weight: 500;
+  font-size: 16px;
+}
+
+.member-meta {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.member-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(255,255,255,0.06);
+  color: var(--muted);
+  cursor: pointer;
+  transition: 0.2s;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-btn:hover {
+  background: rgba(255,255,255,0.15);
+  color: var(--text);
+}
+
+.icon-btn.edit:hover { color: var(--accent); }
+.icon-btn.delete:hover { color: var(--danger); }
+
+.empty-list {
+  text-align: center;
+  padding: 50px 20px;
+  color: var(--muted);
+}
+
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 16px 24px;
+  border-radius: 16px;
+  background: var(--glass);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  color: var(--text);
+  transform: translateY(120px);
+  opacity: 0;
+  transition: 0.3s;
+  z-index: 1000;
+}
+
+.toast.show {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+@media (max-width: 640px) {
+  .form-grid { grid-template-columns: 1fr; }
+  .stats { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <div class="logo">👨‍👩‍👧 Family Member Manager</div>
+    <div class="subtitle">จัดการข้อมูลสมาชิกในครอบครัว</div>
+  </header>
+
+  <div class="stats">
+    <div class="stat-box">
+      <div class="stat-number" id="stat-total">0</div>
+      <div class="stat-label">สมาชิกทั้งหมด</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-number" id="stat-male">0</div>
+      <div class="stat-label">ชาย</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-number" id="stat-female">0</div>
+      <div class="stat-label">หญิง</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" id="form-title">➕ เพิ่มสมาชิก</div>
+    <form id="member-form">
+      <input type="hidden" id="edit-id" />
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>ชื่อ</label>
+          <input type="text" id="name" placeholder="เช่น เกย" required />
+        </div>
+        <div class="form-group">
+          <label>เพศ</label>
+          <div class="gender-options">
+            <button type="button" class="gender-btn male active" data-g="m">ชาย</button>
+            <button type="button" class="gender-btn female" data-g="f">หญิง</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>คู่สมรส (ถ้ามี)</label>
+          <select id="spouse">
+            <option value="">-- ไม่มี --</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>บุตรของ (เลือกพ่อ/แม่)</label>
+          <select id="parent">
+            <option value="">-- ไม่มี (เป็นผู้เริ่มต้น) --</option>
+          </select>
+        </div>
+      </div>
+      <div class="btn-group">
+        <button type="submit" class="btn btn-primary" id="save-btn">บันทึก</button>
+        <button type="button" class="btn btn-secondary" id="cancel-btn" style="display:none;">ยกเลิก</button>
+        <button type="button" class="btn btn-danger" id="delete-btn" style="display:none;">ลบ</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📋 รายชื่อสมาชิก</div>
+    <div class="members-list" id="members-list"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let people = [...(typeof peopleData !== 'undefined' ? peopleData : [])];
+let selectedGender = 'm';
+let editingId = null;
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function updateStats() {
+  document.getElementById('stat-total').textContent = people.length;
+  document.getElementById('stat-male').textContent = people.filter(p => p.gender === 'm').length;
+  document.getElementById('stat-female').textContent = people.filter(p => p.gender === 'f').length;
+}
+
+function getSpouseName(id) {
+  if (!id) return '';
+  const s = people.find(p => p.id === id);
+  return s ? 'คู่สมรส: ' + s.name : '';
+}
+
+function getParentName(id) {
+  if (!id) return '';
+  const p = people.find(x => x.id === id);
+  return p ? 'บุตรของ: ' + p.name : '';
+}
+
+function renderMembersList() {
+  const list = document.getElementById('members-list');
+  list.innerHTML = '';
+
+  if (people.length === 0) {
+    list.innerHTML = `<div class="empty-list">ยังไม่มีข้อมูลสมาชิก</div>`;
+    return;
+  }
+
+  people.forEach(p => {
+    const meta = [getSpouseName(p.spouseId), getParentName(p.parentId)].filter(Boolean).join(' • ');
+    const item = document.createElement('div');
+    item.className = 'member-item' + (editingId === p.id ? ' active' : '');
+    item.innerHTML = `
+      <div class="member-info">
+        <div class="member-icon ${p.gender === 'm' ? 'male' : 'female'}">${p.gender === 'm' ? '♂' : '♀'}</div>
+        <div>
+          <div class="member-name">${p.name}</div>
+          ${meta ? `<div class="member-meta">${meta}</div>` : ''}
+        </div>
+      </div>
+      <div class="member-actions">
+        <button class="icon-btn edit" onclick="event.stopPropagation(); editMember('${p.id}')">✎</button>
+        <button class="icon-btn delete" onclick="event.stopPropagation(); deleteMember('${p.id}')">🗑</button>
+      </div>
+    `;
+    item.onclick = () => selectMember(p.id);
+    list.appendChild(item);
+  });
+}
+
+function populateSelects() {
+  const spouse = document.getElementById('spouse');
+  const parent = document.getElementById('parent');
+  const curSpouse = spouse.value;
+  const curParent = parent.value;
+
+  spouse.innerHTML = '<option value="">-- ไม่มี --</option>';
+  parent.innerHTML = '<option value="">-- ไม่มี (เป็นผู้เริ่มต้น) --</option>';
+
+  people.forEach(p => {
+    if (editingId && p.id === editingId) return;
+
+    const opt1 = document.createElement('option');
+    opt1.value = p.id;
+    opt1.textContent = p.name;
+    spouse.appendChild(opt1);
+
+    const opt2 = document.createElement('option');
+    opt2.value = p.id;
+    opt2.textContent = p.name;
+    parent.appendChild(opt2);
+  });
+
+  spouse.value = curSpouse || '';
+  parent.value = curParent || '';
+}
+
+function selectMember(id) {
+  editingId = id;
+  const p = people.find(x => x.id === id);
+  document.getElementById('name').value = p.name;
+  setGender(p.gender);
+  document.getElementById('spouse').value = p.spouseId || '';
+  document.getElementById('parent').value = p.parentId || '';
+  document.getElementById('edit-id').value = id;
+
+  document.getElementById('form-title').textContent = '✏️ แก้ไขสมาชิก';
+  document.getElementById('save-btn').textContent = 'อัปเดต';
+  document.getElementById('cancel-btn').style.display = 'block';
+  document.getElementById('delete-btn').style.display = 'block';
+  populateSelects();
+  renderMembersList();
+}
+
+function editMember(id) {
+  selectMember(id);
+}
+
+function deleteMember(id) {
+  const p = people.find(x => x.id === id);
+  if (!confirm(`ต้องการลบ "${p.name}" ใช่หรือไม่?`)) return;
+
+  people = people.filter(x => x.id !== id);
+  people.forEach(x => {
+    if (x.spouseId === id) x.spouseId = '';
+    if (x.parentId === id) x.parentId = '';
+  });
+
+  if (editingId === id) resetForm();
+  refreshAll();
+  showToast('ลบสมาชิกแล้ว');
+}
+
+function resetForm() {
+  editingId = null;
+  document.getElementById('member-form').reset();
+  setGender('m');
+  document.getElementById('form-title').textContent = '➕ เพิ่มสมาชิก';
+  document.getElementById('save-btn').textContent = 'บันทึก';
+  document.getElementById('cancel-btn').style.display = 'none';
+  document.getElementById('delete-btn').style.display = 'none';
+  populateSelects();
+}
+
+function setGender(g) {
+  selectedGender = g;
+  document.querySelectorAll('.gender-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.g === g);
+  });
+}
+
+function refreshAll() {
+  populateSelects();
+  renderMembersList();
+  updateStats();
+}
+
+document.querySelectorAll('.gender-btn').forEach(btn => {
+  btn.onclick = () => setGender(btn.dataset.g);
+});
+
+document.getElementById('member-form').onsubmit = function(e) {
+  e.preventDefault();
+  const name = document.getElementById('name').value.trim();
+  const spouseId = document.getElementById('spouse').value;
+  const parentId = document.getElementById('parent').value;
+
+  if (!name) {
+    alert('กรุณากรอกชื่อ');
+    return;
+  }
+
+  if (spouseId && parentId && spouseId === parentId) {
+    alert('ไม่สามารถเลือกคู่สมรสและบุตรของเป็นคนเดียวกันได้');
+    return;
+  }
+
+  if (editingId) {
+    const p = people.find(x => x.id === editingId);
+    p.name = name;
+    p.gender = selectedGender;
+    p.spouseId = spouseId;
+    p.parentId = parentId;
+    showToast('อัปเดตสมาชิกแล้ว');
+  } else {
+    const newId = Date.now().toString();
+    people.push({ id: newId, name, gender: selectedGender, spouseId, parentId });
+    showToast('เพิ่มสมาชิกแล้ว');
+  }
+
+  resetForm();
+  refreshAll();
+};
+
+document.getElementById('cancel-btn').onclick = resetForm;
+document.getElementById('delete-btn').onclick = function() {
+  if (editingId) deleteMember(editingId);
+};
+
+refreshAll();
+</script>
+
+</body>
+</html>
