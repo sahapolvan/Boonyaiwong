@@ -6,15 +6,14 @@ const vm = require("vm");
 const app = express();
 const PORT = 3000;
 
-const ROOT = __dirname;
-const DATA_FILE = path.join(ROOT, "data.js");
-const BACKUP_FILE = path.join(ROOT, "data.backup.js");
+const DATA_FILE = path.join(__dirname, "data.js");
+const BACKUP_FILE = path.join(__dirname, "data.backup.js");
 
 app.use(express.json({ limit: "10mb" }));
 
-// --------------------------------------------------
-// อ่าน data.js
-// --------------------------------------------------
+// ======================================================
+// อ่านข้อมูลจาก data.js
+// ======================================================
 function readFamilyData() {
     if (!fs.existsSync(DATA_FILE)) {
         throw new Error("ไม่พบไฟล์ data.js");
@@ -24,95 +23,110 @@ function readFamilyData() {
 
     const sandbox = {};
 
-    vm.runInNewContext(
-        code + "\n;globalThis.__familyData = familyRawData;",
-        sandbox
-    );
-
-    if (!Array.isArray(sandbox.__familyData)) {
+    try {
+        vm.runInNewContext(
+            code + "\nthis.__familyRawData = familyRawData;",
+            sandbox
+        );
+    } catch (error) {
         throw new Error(
-            "data.js ต้องมีตัวแปร familyRawData ที่เป็น Array"
+            "อ่าน data.js ไม่สำเร็จ: " + error.message
         );
     }
 
-    return sandbox.__familyData;
+    if (!Array.isArray(sandbox.__familyRawData)) {
+        throw new Error(
+            "ไม่พบ familyRawData หรือ familyRawData ไม่ใช่ Array"
+        );
+    }
+
+    return sandbox.__familyRawData;
 }
 
-// --------------------------------------------------
-// บันทึก data.js
-// --------------------------------------------------
+// ======================================================
+// บันทึกกลับลง data.js
+// ======================================================
 function writeFamilyData(data) {
 
-    // สำรองไฟล์เดิมก่อน
+    // สำรองข้อมูลเดิม
     if (fs.existsSync(DATA_FILE)) {
         fs.copyFileSync(DATA_FILE, BACKUP_FILE);
     }
 
-    const output =
-`// Family Tree Data
-// แก้ไขผ่านระบบ Manager ได้
-// อัปเดตล่าสุด: ${new Date().toLocaleString("th-TH")}
+    const content =
+`// data.js - ข้อมูลสมาชิกครอบครัวแบบ flat array
 
 const familyRawData = ${JSON.stringify(data, null, 2)};
 `;
 
     const tempFile = DATA_FILE + ".tmp";
 
-    fs.writeFileSync(tempFile, output, "utf8");
+    fs.writeFileSync(
+        tempFile,
+        content,
+        "utf8"
+    );
 
-    // เขียนเสร็จแล้วค่อยแทนที่ไฟล์จริง
-    fs.renameSync(tempFile, DATA_FILE);
+    fs.renameSync(
+        tempFile,
+        DATA_FILE
+    );
 }
 
-// --------------------------------------------------
-// ตรวจสอบข้อมูล
-// --------------------------------------------------
-function normalizePerson(person) {
+// ======================================================
+// แปลงข้อมูลให้ตรงกับโครงสร้างเดิม
+// ======================================================
+function normalizePerson(data) {
 
     return {
-        ...person,
+        id: String(data.id),
 
-        id: Number(person.id),
+        name: String(data.name || ""),
 
-        name: String(person.name || "").trim(),
+        father:
+            data.father === null ||
+            data.father === undefined
+                ? ""
+                : String(data.father),
+
+        mother:
+            data.mother === null ||
+            data.mother === undefined
+                ? ""
+                : String(data.mother),
+
+        spouse: Array.isArray(data.spouse)
+            ? data.spouse.map(String)
+            : [],
 
         gender:
-            person.gender === "ญ"
+            data.gender === "ญ"
                 ? "ญ"
                 : "ช",
 
-        father:
-            person.father === null ||
-            person.father === undefined ||
-            person.father === ""
-                ? null
-                : Number(person.father),
-
-        mother:
-            person.mother === null ||
-            person.mother === undefined ||
-            person.mother === ""
-                ? null
-                : Number(person.mother),
-
-        spouse:
-            Array.isArray(person.spouse)
-                ? person.spouse
-                    .filter(x => x !== null && x !== "")
-                    .map(Number)
-                : [],
-
         photo:
-            person.photo === undefined ||
-            person.photo === null
+            data.photo === null ||
+            data.photo === undefined
                 ? ""
-                : String(person.photo)
+                : String(data.photo)
     };
 }
 
-// --------------------------------------------------
-// API: อ่านข้อมูลทั้งหมด
-// --------------------------------------------------
+// ======================================================
+// ตรวจสอบระบบ
+// ======================================================
+app.get("/api/health", (req, res) => {
+
+    res.json({
+        success: true,
+        message: "Family Tree Server ทำงานปกติ"
+    });
+
+});
+
+// ======================================================
+// GET - อ่านสมาชิกทั้งหมด
+// ======================================================
 app.get("/api/family", (req, res) => {
 
     try {
@@ -121,6 +135,7 @@ app.get("/api/family", (req, res) => {
 
         res.json({
             success: true,
+            count: data.length,
             data: data
         });
 
@@ -132,12 +147,52 @@ app.get("/api/family", (req, res) => {
             success: false,
             message: error.message
         });
+
     }
+
 });
 
-// --------------------------------------------------
-// API: เพิ่มสมาชิก
-// --------------------------------------------------
+// ======================================================
+// GET - สมาชิกคนเดียว
+// ======================================================
+app.get("/api/family/:id", (req, res) => {
+
+    try {
+
+        const data = readFamilyData();
+
+        const person = data.find(
+            p => String(p.id) === String(req.params.id)
+        );
+
+        if (!person) {
+
+            return res.status(404).json({
+                success: false,
+                message: "ไม่พบสมาชิก"
+            });
+
+        }
+
+        res.json({
+            success: true,
+            data: person
+        });
+
+    } catch (error) {
+
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+
+    }
+
+});
+
+// ======================================================
+// POST - เพิ่มสมาชิก
+// ======================================================
 app.post("/api/family", (req, res) => {
 
     try {
@@ -152,53 +207,53 @@ app.post("/api/family", (req, res) => {
                 success: false,
                 message: "กรุณาระบุชื่อ"
             });
+
         }
 
         // หา ID ใหม่
-        const maxId = data.reduce(
-            (max, person) =>
-                Math.max(max, Number(person.id) || 0),
-            0
-        );
+        let maxId = 0;
 
-        const newId = maxId + 1;
+        data.forEach(person => {
+
+            const id = Number(person.id);
+
+            if (!isNaN(id) && id > maxId) {
+                maxId = id;
+            }
+
+        });
+
+        const newId = String(maxId + 1);
 
         const person = normalizePerson({
             ...body,
             id: newId
         });
 
-        // ป้องกันข้อมูลผิด
         person.spouse =
-            person.spouse.filter(id => id !== newId);
-
-        if (person.father === newId) {
-            person.father = null;
-        }
-
-        if (person.mother === newId) {
-            person.mother = null;
-        }
+            person.spouse.filter(
+                id => id !== newId
+            );
 
         data.push(person);
 
-        // ทำคู่สมรสให้เชื่อมกันทั้งสองฝั่ง
+        // เชื่อมคู่สมรสทั้งสองฝั่ง
         person.spouse.forEach(spouseId => {
 
             const spouse = data.find(
-                p => Number(p.id) === Number(spouseId)
+                p => String(p.id) === String(spouseId)
             );
 
-            if (spouse) {
+            if (!spouse) return;
 
-                if (!Array.isArray(spouse.spouse)) {
-                    spouse.spouse = [];
-                }
-
-                if (!spouse.spouse.includes(newId)) {
-                    spouse.spouse.push(newId);
-                }
+            if (!Array.isArray(spouse.spouse)) {
+                spouse.spouse = [];
             }
+
+            if (!spouse.spouse.includes(newId)) {
+                spouse.spouse.push(newId);
+            }
+
         });
 
         writeFamilyData(data);
@@ -217,22 +272,24 @@ app.post("/api/family", (req, res) => {
             success: false,
             message: error.message
         });
+
     }
+
 });
 
-// --------------------------------------------------
-// API: แก้ไขสมาชิก
-// --------------------------------------------------
+// ======================================================
+// PUT - แก้ไขสมาชิก
+// ======================================================
 app.put("/api/family/:id", (req, res) => {
 
     try {
 
-        const id = Number(req.params.id);
+        const id = String(req.params.id);
 
         const data = readFamilyData();
 
         const index = data.findIndex(
-            p => Number(p.id) === id
+            p => String(p.id) === id
         );
 
         if (index === -1) {
@@ -241,9 +298,15 @@ app.put("/api/family/:id", (req, res) => {
                 success: false,
                 message: "ไม่พบสมาชิก ID " + id
             });
+
         }
 
         const oldPerson = data[index];
+
+        const oldSpouses =
+            Array.isArray(oldPerson.spouse)
+                ? oldPerson.spouse.map(String)
+                : [];
 
         const newPerson = normalizePerson({
             ...oldPerson,
@@ -251,60 +314,62 @@ app.put("/api/family/:id", (req, res) => {
             id: id
         });
 
-        // --------------------------------------------------
-        // ตรวจสอบคู่สมรส
-        // --------------------------------------------------
-
-        const oldSpouses = Array.isArray(oldPerson.spouse)
-            ? oldPerson.spouse.map(Number)
-            : [];
-
-        const newSpouses = Array.isArray(newPerson.spouse)
-            ? [...new Set(
+        // ป้องกันการเลือกตัวเองเป็นคู่สมรส
+        newPerson.spouse =
+            [...new Set(
                 newPerson.spouse
-                    .map(Number)
+                    .map(String)
                     .filter(x => x !== id)
-            )]
-            : [];
+            )];
 
-        newPerson.spouse = newSpouses;
+        const newSpouses = newPerson.spouse;
 
-        // คนที่เคยเป็นคู่สมรส แต่ถูกเอาออก
+        // ----------------------------------------------
+        // ลบความสัมพันธ์คู่สมรสเก่า
+        // ----------------------------------------------
         oldSpouses.forEach(spouseId => {
 
             if (!newSpouses.includes(spouseId)) {
 
                 const spouse = data.find(
-                    p => Number(p.id) === spouseId
+                    p => String(p.id) === spouseId
                 );
 
                 if (spouse && Array.isArray(spouse.spouse)) {
 
                     spouse.spouse =
                         spouse.spouse
-                            .map(Number)
+                            .map(String)
                             .filter(x => x !== id);
+
                 }
+
             }
+
         });
 
-        // คนที่เพิ่มเข้ามาเป็นคู่สมรส
+        // ----------------------------------------------
+        // เพิ่มความสัมพันธ์คู่สมรสใหม่
+        // ----------------------------------------------
         newSpouses.forEach(spouseId => {
 
             const spouse = data.find(
-                p => Number(p.id) === spouseId
+                p => String(p.id) === spouseId
             );
 
-            if (spouse) {
+            if (!spouse) return;
 
-                if (!Array.isArray(spouse.spouse)) {
-                    spouse.spouse = [];
-                }
-
-                if (!spouse.spouse.includes(id)) {
-                    spouse.spouse.push(id);
-                }
+            if (!Array.isArray(spouse.spouse)) {
+                spouse.spouse = [];
             }
+
+            spouse.spouse =
+                spouse.spouse.map(String);
+
+            if (!spouse.spouse.includes(id)) {
+                spouse.spouse.push(id);
+            }
+
         });
 
         data[index] = newPerson;
@@ -325,22 +390,24 @@ app.put("/api/family/:id", (req, res) => {
             success: false,
             message: error.message
         });
+
     }
+
 });
 
-// --------------------------------------------------
-// API: ลบสมาชิก
-// --------------------------------------------------
+// ======================================================
+// DELETE - ลบสมาชิก
+// ======================================================
 app.delete("/api/family/:id", (req, res) => {
 
     try {
 
-        const id = Number(req.params.id);
+        const id = String(req.params.id);
 
         let data = readFamilyData();
 
         const exists = data.some(
-            p => Number(p.id) === id
+            p => String(p.id) === id
         );
 
         if (!exists) {
@@ -349,37 +416,40 @@ app.delete("/api/family/:id", (req, res) => {
                 success: false,
                 message: "ไม่พบสมาชิก ID " + id
             });
+
         }
 
-        // เอา ID นี้ออกจากคู่สมรส / พ่อ / แม่
+        // ลบ ID ออกจากความสัมพันธ์ของทุกคน
         data = data.map(person => {
 
-            const updated = {
+            const p = {
                 ...person
             };
 
-            if (Array.isArray(updated.spouse)) {
+            if (Array.isArray(p.spouse)) {
 
-                updated.spouse =
-                    updated.spouse
-                        .map(Number)
+                p.spouse =
+                    p.spouse
+                        .map(String)
                         .filter(x => x !== id);
+
             }
 
-            if (Number(updated.father) === id) {
-                updated.father = null;
+            if (String(p.father) === id) {
+                p.father = "";
             }
 
-            if (Number(updated.mother) === id) {
-                updated.mother = null;
+            if (String(p.mother) === id) {
+                p.mother = "";
             }
 
-            return updated;
+            return p;
+
         });
 
-        // ลบสมาชิก
+        // ลบตัวสมาชิก
         data = data.filter(
-            person => Number(person.id) !== id
+            p => String(p.id) !== id
         );
 
         writeFamilyData(data);
@@ -397,54 +467,49 @@ app.delete("/api/family/:id", (req, res) => {
             success: false,
             message: error.message
         });
+
     }
+
 });
 
-// --------------------------------------------------
-// API: ตรวจสอบระบบ
-// --------------------------------------------------
-app.get("/api/health", (req, res) => {
-
-    res.json({
-        success: true,
-        message: "Family Tree Server ทำงานปกติ",
-        time: new Date().toISOString()
-    });
-});
-
-// --------------------------------------------------
-// ให้เปิดไฟล์ HTML / CSS / JS ในโฟลเดอร์เดียวกัน
-// --------------------------------------------------
-app.use(express.static(ROOT, {
+// ======================================================
+// ปิด Cache ของ data.js
+// ======================================================
+app.use(express.static(__dirname, {
 
     setHeaders: (res, filePath) => {
 
-        // ไม่ให้ browser จำ data.js เก่า
         if (filePath.endsWith("data.js")) {
+
             res.setHeader(
                 "Cache-Control",
-                "no-store, no-cache, must-revalidate"
+                "no-store, no-cache, must-revalidate, proxy-revalidate"
             );
+
         }
+
     }
 
 }));
 
-// --------------------------------------------------
+// ======================================================
 // เริ่ม Server
-// --------------------------------------------------
+// ======================================================
 app.listen(PORT, () => {
 
     console.log("");
-    console.log("======================================");
-    console.log("   FAMILY TREE SERVER");
-    console.log("======================================");
+    console.log("==========================================");
+    console.log("       FAMILY TREE SERVER");
+    console.log("==========================================");
     console.log("");
-    console.log(`Server: http://localhost:${PORT}`);
-    console.log(`Manager: http://localhost:${PORT}/manager.html`);
-    console.log(`API: http://localhost:${PORT}/api/family`);
+    console.log("Server  : http://localhost:" + PORT);
+    console.log("Manager : http://localhost:" + PORT + "/manager.html");
+    console.log("API     : http://localhost:" + PORT + "/api/family");
     console.log("");
-    console.log("ข้อมูลจะถูกบันทึกลง data.js");
-    console.log("สำรองข้อมูลไว้ที่ data.backup.js");
+    console.log("Data    : " + DATA_FILE);
+    console.log("Backup  : " + BACKUP_FILE);
+    console.log("");
+    console.log("จำนวนข้อมูลที่อยู่ใน data.js จะอ่านจาก");
+    console.log("familyRawData โดยตรง");
     console.log("");
 });
