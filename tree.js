@@ -1,1486 +1,1631 @@
-// tree.js
-// ระบบข้อมูล + Layout + Draw + Geometry
+/* =========================================================
+   tree.js
+   ระบบแสดงผังครอบครัว
+   - D3.js
+   - เส้นคู่สมรสหลายคนแบบหักหลบ
+   - เส้นพ่อแม่ -> ลูกไม่ตัดผ่านสมาชิก
+   ========================================================= */
 
-const TreeCore = (function () {
+(function () {
+
+  "use strict";
+
+  let svg;
+  let rootGroup;
+  let linkGroup;
+  let marriageGroup;
+  let nodeGroup;
+
+  let currentData = [];
+  let currentRoots = [];
+
+  let zoomBehavior;
+  let currentScale = 1;
+
+  let width = 1200;
+  let height = 800;
+
+  const NODE_W = 120;
+  const NODE_H = 52;
+
+  const X_GAP = 55;
+  const Y_GAP = 150;
+
+  const SPOUSE_LANE_GAP = 28;
+  const CHILD_LANE_GAP = 45;
+
+  const COLORS = {
+    line: "#8d6e63",
+    male: "#cfe2f3",
+    female: "#f4cccc",
+    text: "#222",
+    heart: "#e53935"
+  };
+
 
   /* =========================================================
-     1. CONSTANTS
-  ========================================================= */
+     Utility
+     ========================================================= */
 
-  const CARD_W = 110;
-  const CARD_H = 46;
-  const PHOTO_SIZE = 32;
-  const COUPLE_GAP = 22;
-  const LEVEL_H = 130;
-  const SIBLING_GAP = 34;
+  function byId(id) {
+    return currentData.find(d => String(d.id) === String(id));
+  }
 
-  const MALE_COLOR = "#cfe2f3";
-  const FEMALE_COLOR = "#f4cccc";
+  function cleanId(id) {
+    if (id === null || id === undefined || id === "") {
+      return null;
+    }
+
+    return String(id);
+  }
+
+  function getSpouses(person) {
+    if (!person || !Array.isArray(person.spouse)) {
+      return [];
+    }
+
+    return person.spouse
+      .map(cleanId)
+      .filter(Boolean)
+      .map(id => byId(id))
+      .filter(Boolean);
+  }
+
+  function getChildren(personId) {
+    return currentData.filter(p => {
+      return (
+        cleanId(p.father) === cleanId(personId) ||
+        cleanId(p.mother) === cleanId(personId)
+      );
+    });
+  }
+
+  function isMale(person) {
+    return person && person.gender === "ช";
+  }
+
+  function nodeFill(person) {
+    return isMale(person)
+      ? COLORS.male
+      : COLORS.female;
+  }
+
 
   /* =========================================================
-     2. STATE
-  ========================================================= */
+     Generation
+     ========================================================= */
 
-  let svg = null;
-  let g = null;
-  let zoomHandler = null;
+  function calculateGeneration(data) {
 
-  let flatNodes = [];
-  let familyData = null;
-  let containerEl = null;
+    const map = new Map();
+
+    data.forEach(person => {
+      map.set(String(person.id), person);
+    });
+
+    const memo = new Map();
+    const visiting = new Set();
+
+    function depth(id) {
+
+      id = String(id);
+
+      if (memo.has(id)) {
+        return memo.get(id);
+      }
+
+      if (visiting.has(id)) {
+        return 0;
+      }
+
+      visiting.add(id);
+
+      const p = map.get(id);
+
+      if (!p) {
+        visiting.delete(id);
+        return 0;
+      }
+
+      const parents = [];
+
+      if (p.father && map.has(String(p.father))) {
+        parents.push(String(p.father));
+      }
+
+      if (p.mother && map.has(String(p.mother))) {
+        parents.push(String(p.mother));
+      }
+
+      let result = 0;
+
+      if (parents.length) {
+        result =
+          Math.max(...parents.map(depth)) + 1;
+      }
+
+      visiting.delete(id);
+
+      memo.set(id, result);
+
+      return result;
+    }
+
+    data.forEach(p => {
+      p.__generation = depth(p.id);
+    });
+
+    return data;
+  }
+
 
   /* =========================================================
-     3. DATA
-  ========================================================= */
+     Build family units
+     ========================================================= */
 
-  function normalizeFamilyData(rawData) {
+  function buildFamilyUnits(data) {
 
-    const byId = {};
+    const units = [];
+    const usedChildren = new Set();
 
-    rawData.forEach(p => {
+    data.forEach(person => {
 
-      let spouses = [];
+      const children = getChildren(person.id);
 
-      if (p.spouse) {
+      if (!children.length) {
+        return;
+      }
 
-        if (Array.isArray(p.spouse)) {
-          spouses = [...p.spouse];
-        }
+      const spouses = getSpouses(person);
 
-        else if (typeof p.spouse === "string") {
-          spouses = p.spouse
-            .split("|")
-            .filter(s => s.trim());
+      let partner = null;
+
+      for (const spouse of spouses) {
+
+        const partnerChildren =
+          getChildren(spouse.id);
+
+        const sameChildren =
+          partnerChildren.filter(c =>
+            children.some(x =>
+              String(x.id) === String(c.id)
+            )
+          );
+
+        if (sameChildren.length) {
+          partner = spouse;
+          break;
         }
       }
 
-      byId[p.id] = {
-        ...p,
-        spouse: spouses,
-        spouses: [],
-        childrenBySpouse: {}
-      };
+      const parentIds = [String(person.id)];
+
+      if (partner) {
+        parentIds.push(String(partner.id));
+      }
+
+      const childIds = children.map(c =>
+        String(c.id)
+      );
+
+      const key =
+        parentIds.slice().sort().join("-") +
+        "|" +
+        childIds.slice().sort().join("-");
+
+      if (
+        units.some(u => u.key === key)
+      ) {
+        return;
+      }
+
+      childIds.forEach(id =>
+        usedChildren.add(id)
+      );
+
+      units.push({
+        key,
+        parents: parentIds,
+        children: childIds,
+        generation: person.__generation
+      });
+
     });
 
+    return units;
+  }
 
-    Object.values(byId).forEach(p => {
 
-      p.spouse.forEach(sid => {
+  /* =========================================================
+     Position nodes
+     ========================================================= */
 
-        if (
-          byId[sid] &&
-          !p.spouses.includes(sid)
-        ) {
-          p.spouses.push(sid);
-        }
+  function calculatePositions(data) {
+
+    const generations = {};
+
+    data.forEach(person => {
+
+      const g = person.__generation || 0;
+
+      if (!generations[g]) {
+        generations[g] = [];
+      }
+
+      generations[g].push(person);
+
+    });
+
+    const positions = new Map();
+
+    const maxGeneration =
+      Math.max(
+        ...Object.keys(generations)
+          .map(Number)
+      );
+
+    /*
+      วางสมาชิกแต่ละรุ่นในแนวนอน
+    */
+
+    for (
+      let g = 0;
+      g <= maxGeneration;
+      g++
+    ) {
+
+      const members =
+        generations[g] || [];
+
+      members.forEach((person, index) => {
+
+        positions.set(
+          String(person.id),
+          {
+            x:
+              100 +
+              index *
+              (NODE_W + X_GAP),
+
+            y:
+              100 +
+              g *
+              Y_GAP
+          }
+        );
+
+      });
+
+    }
+
+    /*
+      จัดกลุ่มลูกของคู่เดียวกัน
+      ให้อยู่ใกล้กัน
+    */
+
+    const units =
+      buildFamilyUnits(data);
+
+    units.forEach(unit => {
+
+      const parents =
+        unit.parents
+          .map(id => positions.get(id))
+          .filter(Boolean);
+
+      if (!parents.length) {
+        return;
+      }
+
+      const center =
+        parents.reduce(
+          (sum, p) => sum + p.x,
+          0
+        ) / parents.length;
+
+      const children =
+        unit.children
+          .map(id => ({
+            id,
+            pos: positions.get(id)
+          }))
+          .filter(x => x.pos);
+
+      if (!children.length) {
+        return;
+      }
+
+      const childWidth =
+        (children.length - 1) *
+        (NODE_W + X_GAP);
+
+      const start =
+        center - childWidth / 2;
+
+      children.forEach((child, index) => {
+
+        child.pos.x =
+          start +
+          index *
+          (NODE_W + X_GAP);
 
       });
 
     });
 
-
-    Object.values(byId).forEach(child => {
-
-      if (
-        child.father &&
-        byId[child.father] &&
-        child.mother &&
-        byId[child.mother]
-      ) {
-
-        const father = byId[child.father];
-        const mother = byId[child.mother];
-
-
-        if (
-          father.spouses.includes(child.mother)
-        ) {
-
-          if (
-            !father.childrenBySpouse[child.mother]
-          ) {
-            father.childrenBySpouse[child.mother] = [];
-          }
-
-          father.childrenBySpouse[
-            child.mother
-          ].push(child.id);
-
-        }
-
-
-        if (
-          mother.spouses.includes(child.father)
-        ) {
-
-          if (
-            !mother.childrenBySpouse[child.father]
-          ) {
-            mother.childrenBySpouse[child.father] = [];
-          }
-
-          mother.childrenBySpouse[
-            child.father
-          ].push(child.id);
-
-        }
-
-      }
-
-    });
-
-    return byId;
+    return positions;
   }
 
 
-  function buildFamilyTree(rawData, rootIds) {
+  /* =========================================================
+     Collision adjustment
+     ========================================================= */
 
-    const byId = normalizeFamilyData(rawData);
+  function preventNodeCollision(
+    data,
+    positions
+  ) {
 
+    const generations = {};
 
-    function buildNodes(personId, visited = new Set()) {
+    data.forEach(person => {
 
-      if (visited.has(personId)) {
-        return [];
+      const g =
+        person.__generation || 0;
+
+      if (!generations[g]) {
+        generations[g] = [];
       }
 
-      visited.add(personId);
+      generations[g].push(person);
 
+    });
 
-      const person = byId[personId];
+    Object.keys(generations)
+      .forEach(g => {
 
-      if (!person) {
-        return [];
-      }
+        const members =
+          generations[g]
+            .sort((a, b) =>
+              positions.get(String(a.id)).x -
+              positions.get(String(b.id)).x
+            );
 
+        for (
+          let i = 1;
+          i < members.length;
+          i++
+        ) {
 
-      /* คนโสด */
+          const prev =
+            positions.get(
+              String(members[i - 1].id)
+            );
 
-      if (
-        !person.spouses ||
-        person.spouses.length === 0
-      ) {
+          const curr =
+            positions.get(
+              String(members[i].id)
+            );
 
-        return [{
-          type: "single",
-          people: [person],
-          children: []
-        }];
+          const minX =
+            prev.x +
+            NODE_W +
+            X_GAP;
 
-      }
+          if (curr.x < minX) {
+            curr.x = minX;
+          }
 
-
-      /* มีคู่เดียว */
-
-      if (person.spouses.length === 1) {
-
-        const spouse =
-          byId[person.spouses[0]];
-
-        const childIds =
-          person.childrenBySpouse[
-            person.spouses[0]
-          ] || [];
-
-
-        const children = [];
-
-        childIds.forEach(cid => {
-
-          children.push(
-            ...buildNodes(
-              cid,
-              new Set(visited)
-            )
-          );
-
-        });
-
-
-        if (spouse) {
-          visited.add(spouse.id);
         }
 
-
-        return [{
-          type: "couple",
-          people: [
-            person,
-            spouse
-          ].filter(Boolean),
-          children
-        }];
-
-      }
+      });
+  }
 
 
-      /* มีหลายคู่ */
+  /* =========================================================
+     Node rectangle edge
+     ========================================================= */
 
-      return [{
+  function nodeLeft(pos) {
+    return pos.x - NODE_W / 2;
+  }
 
-        type: "multi",
+  function nodeRight(pos) {
+    return pos.x + NODE_W / 2;
+  }
 
-        people: [
-          person,
-          ...person.spouses
-            .map(sid => byId[sid])
-            .filter(Boolean)
-        ],
+  function nodeTop(pos) {
+    return pos.y - NODE_H / 2;
+  }
 
-        anchor: person,
-
-        spouses: person.spouses
-          .map(spouseId => {
-
-            const spouse =
-              byId[spouseId];
-
-            const childIds =
-              person.childrenBySpouse[
-                spouseId
-              ] || [];
+  function nodeBottom(pos) {
+    return pos.y + NODE_H / 2;
+  }
 
 
-            const children = [];
+  /* =========================================================
+     Marriage routing
+     
+     สำคัญ:
+     แต่ละคู่จะมี "เส้นของตัวเอง"
+     ไม่ใช้เส้นเดียวร่วมกัน
+     ========================================================= */
 
-            childIds.forEach(cid => {
+  function createMarriagePath(
+    person,
+    spouse,
+    positions,
+    spouseIndex
+  ) {
 
-              children.push(
-                ...buildNodes(
-                  cid,
-                  new Set(visited)
-                )
-              );
+    const a =
+      positions.get(String(person.id));
 
-            });
+    const b =
+      positions.get(String(spouse.id));
 
-
-            if (spouse) {
-              visited.add(spouse.id);
-            }
-
-
-            return {
-              spouse,
-              children
-            };
-
-          })
-          .filter(s => s.spouse)
-
-      }];
-
+    if (!a || !b) {
+      return null;
     }
 
+    /*
+      ถ้าอยู่ติดกันจริง
+      ใช้เส้นตรงได้
+    */
 
-    let roots = rootIds;
-
+    const distance =
+      Math.abs(a.x - b.x);
 
     if (
-      !roots ||
-      roots.length === 0
+      distance <=
+      NODE_W + X_GAP + 10
     ) {
 
-      roots = [];
+      return {
+        path:
+          `M ${nodeRight(a)} ${a.y}
+           L ${nodeLeft(b)} ${b.y}`,
 
-      const includedSpouses =
-        new Set();
+        centerX:
+          (a.x + b.x) / 2,
+
+        centerY:
+          (a.y + b.y) / 2
+      };
+    }
+
+    /*
+      ถ้าไม่ติดกัน
+      ให้หักหลบด้านบน
+
+      คู่แต่ละคนมี lane ของตัวเอง
+    */
+
+    const left =
+      a.x < b.x ? a : b;
+
+    const right =
+      a.x < b.x ? b : a;
+
+    /*
+      lane จะอยู่เหนือ node
+      และแยกออกจากกัน
+    */
+
+    const laneY =
+      Math.min(
+        nodeTop(a),
+        nodeTop(b)
+      ) -
+      35 -
+      spouseIndex *
+      SPOUSE_LANE_GAP;
+
+    const startX =
+      a.x < b.x
+        ? nodeRight(a)
+        : nodeLeft(a);
+
+    const endX =
+      b.x > a.x
+        ? nodeLeft(b)
+        : nodeRight(b);
+
+    const path = `
+      M ${startX} ${a.y}
+      L ${startX} ${laneY}
+      L ${endX} ${laneY}
+      L ${endX} ${b.y}
+    `;
+
+    return {
+      path,
+      centerX:
+        (a.x + b.x) / 2,
+      centerY:
+        laneY
+    };
+  }
 
 
-      Object.values(byId)
+  /* =========================================================
+     Parent -> Child routing
+     ========================================================= */
 
-        .filter(p =>
-          (!p.father || !byId[p.father]) &&
-          (!p.mother || !byId[p.mother])
+  function createParentChildPath(
+    parentIds,
+    child,
+    positions
+  ) {
+
+    const parents =
+      parentIds
+        .map(id =>
+          positions.get(String(id))
         )
+        .filter(Boolean);
 
-        .forEach(p => {
+    const childPos =
+      positions.get(String(child.id));
 
-          if (
-            !includedSpouses.has(p.id)
-          ) {
+    if (
+      !parents.length ||
+      !childPos
+    ) {
+      return null;
+    }
 
-            roots.push(p.id);
+    /*
+      จุดกลางของพ่อแม่
+    */
 
-            p.spouses.forEach(
-              sid =>
-                includedSpouses.add(sid)
+    const centerX =
+      parents.reduce(
+        (sum, p) => sum + p.x,
+        0
+      ) / parents.length;
+
+    const parentBottom =
+      Math.max(
+        ...parents.map(nodeBottom)
+      );
+
+    const childTop =
+      nodeTop(childPos);
+
+    /*
+      connector อยู่กึ่งกลางระหว่างรุ่น
+    */
+
+    const laneY =
+      parentBottom +
+      (childTop - parentBottom) *
+      0.45;
+
+    /*
+      เส้น:
+      พ่อแม่ -> จุดกลาง
+      จุดกลาง -> เหนือลูก
+      เหนือลูก -> ลูก
+    */
+
+    const path = `
+      M ${centerX} ${parentBottom}
+      L ${centerX} ${laneY}
+      L ${childPos.x} ${laneY}
+      L ${childPos.x} ${childTop}
+    `;
+
+    return {
+      path,
+      centerX,
+      centerY: laneY
+    };
+  }
+
+
+  /* =========================================================
+     Find parent couple
+     ========================================================= */
+
+  function findParentCouple(person) {
+
+    if (
+      !person.father &&
+      !person.mother
+    ) {
+      return null;
+    }
+
+    const parents = [];
+
+    if (person.father) {
+      parents.push(
+        String(person.father)
+      );
+    }
+
+    if (person.mother) {
+      parents.push(
+        String(person.mother)
+      );
+    }
+
+    if (!parents.length) {
+      return null;
+    }
+
+    return parents;
+  }
+
+
+  /* =========================================================
+     Draw marriage lines
+     ========================================================= */
+
+  function drawMarriageLines(
+    data,
+    positions
+  ) {
+
+    marriageGroup.selectAll("*").remove();
+
+    const drawn = new Set();
+
+    data.forEach(person => {
+
+      const spouses =
+        getSpouses(person);
+
+      spouses.forEach(
+        (spouse, index) => {
+
+          const key = [
+            String(person.id),
+            String(spouse.id)
+          ]
+            .sort()
+            .join("-");
+
+          /*
+            ป้องกันวาดเส้นซ้ำ
+          */
+
+          if (drawn.has(key)) {
+            return;
+          }
+
+          drawn.add(key);
+
+          const result =
+            createMarriagePath(
+              person,
+              spouse,
+              positions,
+              index
+            );
+
+          if (!result) {
+            return;
+          }
+
+          const path =
+            marriageGroup
+              .append("path")
+              .attr("class", "marriage-line")
+              .attr("d", result.path)
+              .attr("data-a", person.id)
+              .attr("data-b", spouse.id);
+
+          /*
+            หัวใจตรงกลางเส้น
+          */
+
+          marriageGroup
+            .append("text")
+            .attr("class", "heart")
+            .attr(
+              "x",
+              result.centerX
+            )
+            .attr(
+              "y",
+              result.centerY - 5
+            )
+            .attr(
+              "text-anchor",
+              "middle"
+            )
+            .text("♥");
+
+        }
+      );
+
+    });
+  }
+
+
+  /* =========================================================
+     Draw parent -> child
+     ========================================================= */
+
+  function drawParentChildLines(
+    data,
+    positions
+  ) {
+
+    linkGroup.selectAll("*").remove();
+
+    data.forEach(child => {
+
+      const parents =
+        findParentCouple(child);
+
+      if (!parents) {
+        return;
+      }
+
+      const result =
+        createParentChildPath(
+          parents,
+          child,
+          positions
+        );
+
+      if (!result) {
+        return;
+      }
+
+      linkGroup
+        .append("path")
+        .attr("class", "link")
+        .attr("d", result.path)
+        .attr(
+          "data-child",
+          child.id
+        )
+        .attr(
+          "data-father",
+          child.father || ""
+        )
+        .attr(
+          "data-mother",
+          child.mother || ""
+        );
+
+    });
+  }
+
+
+  /* =========================================================
+     Draw nodes
+     ========================================================= */
+
+  function drawNodes(
+    data,
+    positions
+  ) {
+
+    nodeGroup.selectAll("*").remove();
+
+    const groups =
+      nodeGroup
+        .selectAll(".node-group")
+        .data(
+          data,
+          d => String(d.id)
+        )
+        .enter()
+        .append("g")
+        .attr("class", "node-group")
+        .attr(
+          "transform",
+          d => {
+
+            const p =
+              positions.get(
+                String(d.id)
+              );
+
+            return `
+              translate(
+                ${p.x - NODE_W / 2},
+                ${p.y - NODE_H / 2}
+              )
+            `;
+          }
+        );
+
+    groups
+      .append("rect")
+      .attr("class", "person-bg")
+      .attr("width", NODE_W)
+      .attr("height", NODE_H)
+      .attr("rx", NODE_H / 2)
+      .attr("fill", d =>
+        nodeFill(d)
+      );
+
+    /*
+      จุดสีเล็ก ๆ แสดงเพศ
+    */
+
+    groups
+      .append("circle")
+      .attr("cx", 25)
+      .attr("cy", NODE_H / 2)
+      .attr("r", 13)
+      .attr(
+        "fill",
+        d =>
+          isMale(d)
+            ? "#2e7d9a"
+            : "#ef6c00"
+      );
+
+    groups
+      .append("text")
+      .attr("class", "person-name")
+      .attr("x", 47)
+      .attr(
+        "y",
+        NODE_H / 2
+      )
+      .text(d => d.name || "");
+
+    /*
+      รูปภาพ
+      ถ้ามี photo
+    */
+
+    groups
+      .filter(d =>
+        d.photo &&
+        String(d.photo).trim() !== ""
+      )
+      .append("image")
+      .attr("x", 5)
+      .attr("y", 5)
+      .attr("width", 40)
+      .attr("height", 40)
+      .attr("preserveAspectRatio", "xMidYMid slice")
+      .attr(
+        "href",
+        d => d.photo
+      )
+      .attr("clip-path", "circle(20px at 20px 20px)");
+
+    /*
+      คลิกสมาชิก
+    */
+
+    groups.on("click", function (event, d) {
+
+      event.stopPropagation();
+
+      highlightPerson(
+        String(d.id)
+      );
+
+    });
+
+  }
+
+
+  /* =========================================================
+     Highlight
+     ========================================================= */
+
+  function highlightPerson(id) {
+
+    nodeGroup
+      .selectAll(".node-group")
+      .classed(
+        "highlight",
+        d =>
+          String(d.id) === String(id)
+      );
+
+    /*
+      ทำให้เส้นที่เกี่ยวข้องชัด
+    */
+
+    linkGroup
+      .selectAll(".link")
+      .classed(
+        "dim",
+        function () {
+
+          const child =
+            this.getAttribute(
+              "data-child"
+            );
+
+          const father =
+            this.getAttribute(
+              "data-father"
+            );
+
+          const mother =
+            this.getAttribute(
+              "data-mother"
+            );
+
+          return ![
+            child,
+            father,
+            mother
+          ].includes(String(id));
+
+        }
+      );
+
+    marriageGroup
+      .selectAll(".marriage-line")
+      .classed(
+        "dim",
+        function () {
+
+          const a =
+            this.getAttribute("data-a");
+
+          const b =
+            this.getAttribute("data-b");
+
+          return (
+            String(a) !== String(id) &&
+            String(b) !== String(id)
+          );
+
+        }
+      );
+  }
+
+
+  /* =========================================================
+     Reset highlight
+     ========================================================= */
+
+  function clearHighlight() {
+
+    nodeGroup
+      .selectAll(".node-group")
+      .classed(
+        "highlight",
+        false
+      );
+
+    linkGroup
+      .selectAll(".link")
+      .classed(
+        "dim",
+        false
+      );
+
+    marriageGroup
+      .selectAll(".marriage-line")
+      .classed(
+        "dim",
+        false
+      );
+  }
+
+
+  /* =========================================================
+     Zoom
+     ========================================================= */
+
+  function setupZoom() {
+
+    zoomBehavior =
+      d3.zoom()
+        .scaleExtent([0.2, 3])
+        .on(
+          "zoom",
+          event => {
+
+            currentScale =
+              event.transform.k;
+
+            rootGroup.attr(
+              "transform",
+              event.transform
             );
 
           }
+        );
 
-        });
-
-    }
-
-
-    const children = [];
-
-    roots.forEach(rid => {
-
-      children.push(
-        ...buildNodes(rid)
-      );
-
-    });
-
-
-    if (children.length === 1) {
-      return children[0];
-    }
-
-
-    return {
-      type: "root",
-      people: [],
-      children
-    };
-
-  }
-
-
-  /* =========================================================
-     4. HELPERS
-  ========================================================= */
-
-  function getPhoto(person) {
-
-    if (
-      person.photo &&
-      person.photo.trim()
-    ) {
-      return person.photo;
-    }
-
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(
-      person.name
-    )}&background=random&color=fff&size=64`;
-  }
-
-
-  function genderColor(gender) {
-
-    return gender === "ช"
-      ? MALE_COLOR
-      : FEMALE_COLOR;
-
-  }
-
-
-  function childrenWidth(children) {
-
-    return children.reduce(
-      (sum, c, i) =>
-        sum +
-        c.subtreeW +
-        (i > 0 ? SIBLING_GAP : 0),
-      0
+    svg.call(
+      zoomBehavior
     );
 
   }
 
 
-  function sortCouple(people) {
+  function zoom(delta) {
 
-    return [...people].sort(
-      (a, b) => {
-
-        if (
-          a.gender === "ญ" &&
-          b.gender === "ช"
-        ) {
-          return -1;
-        }
-
-        if (
-          a.gender === "ช" &&
-          b.gender === "ญ"
-        ) {
-          return 1;
-        }
-
-        return 0;
-
-      }
-    );
-
-  }
-
-
-  /* =========================================================
-     5. LAYOUT
-  ========================================================= */
-
-  function measure(node) {
-
-    if (!node) {
+    if (!svg || !zoomBehavior) {
       return;
     }
 
+    svg.transition()
+      .duration(250)
+      .call(
+        zoomBehavior.scaleBy,
+        1 + delta
+      );
+  }
 
-    if (!node.children) {
-      node.children = [];
+
+  function resetZoom() {
+
+    if (!svg || !zoomBehavior) {
+      return;
     }
 
-
-    /* SINGLE */
-
-    if (node.type === "single") {
-
-      node.subtreeW = CARD_W;
-
-    }
-
-
-    /* COUPLE */
-
-    else if (node.type === "couple") {
-
-      node.children.forEach(
-        c => measure(c)
+    svg.transition()
+      .duration(300)
+      .call(
+        zoomBehavior.transform,
+        d3.zoomIdentity
       );
 
+  }
 
-      node.subtreeW =
+
+  /* =========================================================
+     Center tree
+     ========================================================= */
+
+  function centerTree(
+    positions
+  ) {
+
+    const all =
+      Array.from(
+        positions.values()
+      );
+
+    if (!all.length) {
+      return;
+    }
+
+    const minX =
+      Math.min(
+        ...all.map(p =>
+          p.x - NODE_W / 2
+        )
+      );
+
+    const maxX =
+      Math.max(
+        ...all.map(p =>
+          p.x + NODE_W / 2
+        )
+      );
+
+    const minY =
+      Math.min(
+        ...all.map(p =>
+          p.y - NODE_H / 2
+        )
+      );
+
+    const maxY =
+      Math.max(
+        ...all.map(p =>
+          p.y + NODE_H / 2
+        )
+      );
+
+    const treeWidth =
+      maxX - minX;
+
+    const treeHeight =
+      maxY - minY;
+
+    const scaleX =
+      (width - 100) /
+      Math.max(treeWidth, 1);
+
+    const scaleY =
+      (height - 100) /
+      Math.max(treeHeight, 1);
+
+    const scale =
+      Math.min(
+        1,
+        scaleX,
+        scaleY
+      );
+
+    const tx =
+      (width - treeWidth * scale) / 2 -
+      minX * scale;
+
+    const ty =
+      (height - treeHeight * scale) / 2 -
+      minY * scale;
+
+    svg.call(
+      zoomBehavior.transform,
+      d3.zoomIdentity
+        .translate(tx, ty)
+        .scale(scale)
+    );
+
+  }
+
+
+  /* =========================================================
+     Render
+     ========================================================= */
+
+  function render() {
+
+    if (!svg) {
+      return;
+    }
+
+    /*
+      คำนวณรุ่น
+    */
+
+    currentData =
+      calculateGeneration(
+        currentData
+      );
+
+    /*
+      ตำแหน่ง
+    */
+
+    const positions =
+      calculatePositions(
+        currentData
+      );
+
+    preventNodeCollision(
+      currentData,
+      positions
+    );
+
+    /*
+      เส้นลูกก่อน
+    */
+
+    drawParentChildLines(
+      currentData,
+      positions
+    );
+
+    /*
+      เส้นคู่สมรส
+    */
+
+    drawMarriageLines(
+      currentData,
+      positions
+    );
+
+    /*
+      ตัวบุคคลอยู่บนสุด
+      ดังนั้นเส้นจะไม่บังตัวบุคคล
+    */
+
+    drawNodes(
+      currentData,
+      positions
+    );
+
+    /*
+      จัดขนาด SVG
+    */
+
+    const all =
+      Array.from(
+        positions.values()
+      );
+
+    if (all.length) {
+
+      const maxX =
         Math.max(
-          CARD_W * 2 + COUPLE_GAP,
-          childrenWidth(node.children)
+          ...all.map(p =>
+            p.x + NODE_W
+          )
+        );
+
+      const maxY =
+        Math.max(
+          ...all.map(p =>
+            p.y + NODE_H
+          )
+        );
+
+      rootGroup
+        .attr(
+          "width",
+          maxX + 200
+        )
+        .attr(
+          "height",
+          maxY + 200
         );
 
     }
 
+    /*
+      ข้อมูลสถิติ
+    */
 
-    /* MULTI */
-
-    else if (node.type === "multi") {
-
-      let totalW = CARD_W;
-
-
-      node.spouses.forEach(s => {
-
-        s.children.forEach(
-          c => measure(c)
-        );
-
-
-        s.columnW =
-          Math.max(
-            CARD_W,
-            childrenWidth(
-              s.children
-            )
-          );
-
-
-        totalW +=
-          COUPLE_GAP +
-          s.columnW;
-
-      });
-
-
-      node.subtreeW = totalW;
-
-    }
-
-
-    /* ROOT */
-
-    else if (node.type === "root") {
-
-      node.children.forEach(
-        c => measure(c)
+    const stats =
+      document.getElementById(
+        "stats"
       );
 
+    if (stats) {
 
-      node.subtreeW =
-        childrenWidth(
-          node.children
+      const generations =
+        new Set(
+          currentData.map(
+            d => d.__generation
+          )
         );
+
+      stats.textContent =
+        `${generations.size} รุ่น · ${currentData.length} สมาชิก`;
 
     }
 
-  }
+    /*
+      จัดต้นไม้ให้อยู่กลาง
+    */
 
-
-  function placeChildren(
-    children,
-    centerX,
-    baseY
-  ) {
-
-    const totalW =
-      children.reduce(
-        (sum, c, i) =>
-          sum +
-          c.subtreeW +
-          (i > 0
-            ? SIBLING_GAP
-            : 0),
-        0
-      );
-
-
-    let curX =
-      centerX -
-      totalW / 2;
-
-
-    children.forEach(
-      (c, i) => {
-
-        if (i > 0) {
-          curX += SIBLING_GAP;
-        }
-
-
-        place(
-          c,
-          curX +
-            c.subtreeW / 2,
-          baseY
-        );
-
-
-        curX +=
-          c.subtreeW;
-
-      }
+    setTimeout(
+      () => centerTree(positions),
+      50
     );
 
   }
-
-
-  function place(
-    node,
-    x,
-    y
-  ) {
-
-    if (!node) {
-      return;
-    }
-
-
-    node.x = x;
-    node.y = y;
-
-
-    flatNodes.push(node);
-
-
-    if (
-      node.type === "single" ||
-      node.type === "couple"
-    ) {
-
-      if (
-        node.children.length > 0
-      ) {
-
-        placeChildren(
-          node.children,
-          x,
-          y + LEVEL_H
-        );
-
-      }
-
-    }
-
-
-    else if (
-      node.type === "multi"
-    ) {
-
-      node.anchorX =
-        x -
-        node.subtreeW / 2;
-
-
-      let curX =
-        node.anchorX +
-        CARD_W +
-        COUPLE_GAP;
-
-
-      node.spouses.forEach(s => {
-
-        s.x =
-          curX +
-          s.columnW / 2;
-
-        s.cardX =
-          s.x -
-          CARD_W / 2;
-
-        s.y = y;
-
-
-        if (
-          s.children.length > 0
-        ) {
-
-          placeChildren(
-            s.children,
-            s.x,
-            y + LEVEL_H
-          );
-
-        }
-
-
-        curX +=
-          s.columnW +
-          COUPLE_GAP;
-
-      });
-
-    }
-
-
-    else if (
-      node.type === "root"
-    ) {
-
-      placeChildren(
-        node.children,
-        x,
-        y + LEVEL_H
-      );
-
-    }
-
-  }
-
-
   /* =========================================================
-     6. DRAW TREE
-  ========================================================= */
+     Init
+     ========================================================= */
 
-  function drawTree(
+  function init(
     containerId,
-    rawData,
-    rootIds
+    data,
+    roots
   ) {
 
-    containerEl =
+    const container =
       document.getElementById(
         containerId
       );
 
-
-    if (!containerEl) {
-      console.error(
-        "Tree container not found:",
+    if (!container) {
+      throw new Error(
+        "ไม่พบ container: " +
         containerId
       );
-      return;
     }
-
 
     if (
       typeof d3 === "undefined"
     ) {
-      console.error(
-        "D3.js is not loaded"
+      throw new Error(
+        "ไม่พบ D3.js"
       );
-      return;
     }
-
 
     if (
-      !rawData ||
-      !rawData.length
+      !Array.isArray(data)
     ) {
+      throw new Error(
+        "familyRawData ต้องเป็น Array"
+      );
+    }
+
+    currentData =
+      data.map(d => ({
+        ...d,
+        spouse:
+          Array.isArray(d.spouse)
+            ? [...d.spouse]
+            : []
+      }));
+
+    currentRoots =
+      roots || [];
+
+    /*
+      ล้างของเก่า
+    */
+
+    container.innerHTML = "";
+
+    width =
+      Math.max(
+        container.clientWidth,
+        800
+      );
+
+    height =
+      Math.max(
+        container.clientHeight,
+        600
+      );
+
+    /*
+      SVG
+    */
+
+    svg =
+      d3.select(container)
+        .append("svg")
+        .attr(
+          "id",
+          "treeSvg"
+        )
+        .attr(
+          "width",
+          "100%"
+        )
+        .attr(
+          "height",
+          "100%"
+        )
+        .attr(
+          "viewBox",
+          `0 0 ${width} ${height}`
+        );
+
+    /*
+      กลุ่มหลัก
+    */
+
+    rootGroup =
+      svg
+        .append("g")
+        .attr(
+          "class",
+          "tree-root"
+        );
+
+    /*
+      เส้นลูก
+    */
+
+    linkGroup =
+      rootGroup
+        .append("g")
+        .attr(
+          "class",
+          "parent-links"
+        );
+
+    /*
+      เส้นคู่สมรส
+    */
+
+    marriageGroup =
+      rootGroup
+        .append("g")
+        .attr(
+          "class",
+          "marriages"
+        );
+
+    /*
+      node
+    */
+
+    nodeGroup =
+      rootGroup
+        .append("g")
+        .attr(
+          "class",
+          "nodes"
+        );
+
+    /*
+      คลิกพื้นที่ว่าง
+      = ยกเลิก highlight
+    */
+
+    svg.on(
+      "click",
+      function () {
+        clearHighlight();
+      }
+    );
+
+    setupZoom();
+
+    render();
+
+  }
+
+
+  /* =========================================================
+     Search
+     ========================================================= */
+
+  function search(query) {
+
+    query =
+      String(query || "")
+        .trim()
+        .toLowerCase();
+
+    if (!query) {
+
+      clearHighlight();
+
+      return;
+
+    }
+
+    const found =
+      currentData.find(
+        person =>
+          String(
+            person.name || ""
+          )
+            .toLowerCase()
+            .includes(query)
+      );
+
+    if (!found) {
       return;
     }
 
+    highlightPerson(
+      String(found.id)
+    );
+
+  }
+
+
+  /* =========================================================
+     PNG Export
+     ========================================================= */
+
+  async function exportImage(
+    type
+  ) {
+
+    if (
+      typeof html2canvas ===
+      "undefined"
+    ) {
+
+      alert(
+        "ไม่พบ html2canvas"
+      );
+
+      return;
+
+    }
+
+    const container =
+      document.getElementById(
+        "treeContainer"
+      );
+
+    if (!container) {
+      return;
+    }
 
     try {
 
-      familyData =
-        buildFamilyTree(
-          rawData,
-          rootIds || []
+      const canvas =
+        await html2canvas(
+          container,
+          {
+            backgroundColor:
+              "#f6f3ed",
+            scale: 2,
+            useCORS: true
+          }
         );
 
-    }
+      const link =
+        document.createElement(
+          "a"
+        );
 
-    catch (err) {
+      link.download =
+        "family-tree.png";
+
+      link.href =
+        canvas.toDataURL(
+          "image/png"
+        );
+
+      link.click();
+
+    } catch (err) {
 
       console.error(err);
-      return;
+
+      alert(
+        "ไม่สามารถบันทึก PNG ได้: " +
+        err.message
+      );
 
     }
 
-
-    const rect =
-      containerEl.getBoundingClientRect();
+  }
 
 
-    let width = rect.width;
-    let height = rect.height;
+  /* =========================================================
+     Resize
+     ========================================================= */
 
+  window.addEventListener(
+    "resize",
+    function () {
 
-    if (height < 50) {
-      height =
-        window.innerHeight - 200;
-    }
+      if (!svg) {
+        return;
+      }
 
+      const container =
+        document.getElementById(
+          "treeContainer"
+        );
 
-    if (width < 50) {
+      if (!container) {
+        return;
+      }
+
       width =
-        window.innerWidth;
-    }
-
-
-    svg =
-      d3.select(
-        "#" + containerId
-      )
-      .append("svg")
-      .attr("width", width)
-      .attr("height", height)
-      .attr("id", "treeSvg")
-      .style(
-        "cursor",
-        "grab"
-      );
-
-
-    g = svg.append("g");
-
-
-    zoomHandler =
-      d3.zoom()
-        .scaleExtent([
-          0.1,
-          2
-        ])
-        .on(
-          "zoom",
-          e =>
-            g.attr(
-              "transform",
-              e.transform
-            )
+        Math.max(
+          container.clientWidth,
+          800
         );
 
+      height =
+        Math.max(
+          container.clientHeight,
+          600
+        );
 
-    svg.call(
-      zoomHandler
-    );
+      svg.attr(
+        "viewBox",
+        `0 0 ${width} ${height}`
+      );
 
+      render();
 
-    flatNodes = [];
-
-
-    measure(
-      familyData
-    );
-
-
-    place(
-      familyData,
-      0,
-      40
-    );
-
-
-    drawLinks();
-    drawMarriageLines();
-    drawHearts();
-    drawNodes();
-
-  }
+    }
+  );
 
 
   /* =========================================================
-     7. LINKS
-  ========================================================= */
+     TreeExtra API
+     
+     จุดสำคัญ:
+     HTML ของคุณเรียก TreeExtra.init()
+     ดังนั้นต้องประกาศ TreeExtra ตรงนี้
+     ========================================================= */
 
-  function drawLinks() {
+  window.TreeExtra = {
 
-    g.selectAll(".link")
-      .data(
-        flatNodes.filter(
-          d => d.type !== "root"
-        )
-      )
-      .enter()
-      .append("path")
-      .attr(
-        "class",
-        "link"
-      )
-      .attr(
-        "d",
-        d => {
+    init,
 
-          let path = "";
+    search,
 
-          const fromY =
-            d.y +
-            CARD_H / 2;
+    zoom,
 
+    resetZoom,
 
-          if (
-            d.type === "single"
-          ) {
+    exportImage,
 
-            path +=
-              childLine(
-                d.x,
-                fromY,
-                d.children
-              );
-
-          }
-
-
-          else if (
-            d.type === "couple"
-          ) {
-
-            const midX =
-              marriageMidX(d);
-
-
-            path +=
-              childLine(
-                midX,
-                fromY,
-                d.children
-              );
-
-          }
-
-
-          else if (
-            d.type === "multi"
-          ) {
-
-            d.spouses.forEach(
-              s => {
-
-                const midX =
-                  (
-                    d.anchorX +
-                    CARD_W +
-                    s.cardX
-                  ) / 2;
-
-
-                path +=
-                  childLine(
-                    midX,
-                    fromY,
-                    s.children
-                  );
-
-              }
-            );
-
-          }
-
-
-          return path;
-
-        }
-      );
-
-  }
-
-
-  function drawMarriageLines() {
-
-    g.selectAll(
-      ".marriage-line"
-    )
-    .data(
-      flatNodes.filter(
-        d =>
-          d.type === "couple" ||
-          d.type === "multi"
-      )
-    )
-    .enter()
-    .append("path")
-    .attr(
-      "class",
-      "marriage-line"
-    )
-    .attr(
-      "d",
-      d => {
-
-        let path = "";
-
-        const y =
-          d.y +
-          CARD_H / 2;
-
-
-        if (
-          d.type === "couple"
-        ) {
-
-          const leftX =
-            d.x -
-            (CARD_W +
-              COUPLE_GAP) /
-              2 +
-            CARD_W;
-
-
-          const rightX =
-            d.x +
-            (CARD_W +
-              COUPLE_GAP) /
-              2 -
-            CARD_W;
-
-
-          path +=
-            `M${leftX},${y} L${rightX},${y}`;
-
-        }
-
-
-        else if (
-          d.type === "multi"
-        ) {
-
-          d.spouses.forEach(
-            s => {
-
-              const anchorRight =
-                d.anchorX +
-                CARD_W;
-
-
-              const spouseLeft =
-                s.cardX;
-
-
-              path +=
-                `M${anchorRight},${y} L${spouseLeft},${y}`;
-
-            }
-          );
-
-        }
-
-
-        return path;
-
-      }
-    );
-
-  }
-
-
-  function drawHearts() {
-
-    g.selectAll(".heart")
-      .data(
-        flatNodes.filter(
-          d =>
-            d.type === "couple"
-        )
-      )
-      .enter()
-      .append("text")
-      .attr(
-        "class",
-        "heart"
-      )
-      .attr(
-        "text-anchor",
-        "middle"
-      )
-      .attr(
-        "y",
-        d =>
-          d.y +
-          CARD_H / 2 +
-          4
-      )
-      .attr(
-        "x",
-        d =>
-          marriageMidX(d)
-      )
-      .text("❤");
-
-  }
-
-
-  function drawNodes() {
-
-    const nodeSel =
-      g.selectAll(
-        ".node-group"
-      )
-      .data(
-        flatNodes.filter(
-          d =>
-            d.type !== "root"
-        )
-      )
-      .enter()
-      .append("g")
-      .attr(
-        "class",
-        "node-group"
-      )
-      .on(
-        "click",
-        (e, d) =>
-          centerNode(d)
-      );
-
-
-    nodeSel.each(
-      function(d) {
-
-        const el =
-          d3.select(this);
-
-
-        if (
-          d.type === "single"
-        ) {
-
-          drawPersonCard(
-            el,
-            d.x -
-              CARD_W / 2,
-            d.y,
-            d.people[0]
-          );
-
-        }
-
-
-        else if (
-          d.type === "couple"
-        ) {
-
-          const sorted =
-            sortCouple(
-              d.people
-            );
-
-
-          drawPersonCard(
-            el,
-            d.x -
-              CARD_W -
-              COUPLE_GAP / 2,
-            d.y,
-            sorted[0]
-          );
-
-
-          drawPersonCard(
-            el,
-            d.x +
-              COUPLE_GAP / 2,
-            d.y,
-            sorted[1]
-          );
-
-        }
-
-
-        else if (
-          d.type === "multi"
-        ) {
-
-          drawPersonCard(
-            el,
-            d.anchorX,
-            d.y,
-            d.anchor
-          );
-
-
-          d.spouses.forEach(
-            s => {
-
-              drawPersonCard(
-                el,
-                s.cardX,
-                s.y,
-                s.spouse
-              );
-
-            }
-          );
-
-        }
-
-      }
-    );
-
-  }
-
-
-  function drawPersonCard(
-    el,
-    x,
-    y,
-    person
-  ) {
-
-    const card =
-      el.append("g")
-        .attr(
-          "transform",
-          `translate(${x},${y})`
-        );
-
-
-    card.append("rect")
-      .attr(
-        "class",
-        "person-bg"
-      )
-      .attr(
-        "x",
-        0
-      )
-      .attr(
-        "y",
-        0
-      )
-      .attr(
-        "width",
-        CARD_W
-      )
-      .attr(
-        "height",
-        CARD_H
-      )
-      .attr(
-        "fill",
-        genderColor(
-          person.gender
-        )
-      )
-      .attr(
-        "rx",
-        999
-      )
-      .attr(
-        "ry",
-        999
-      );
-
-
-    card.append("image")
-      .attr(
-        "class",
-        "person-photo"
-      )
-      .attr(
-        "x",
-        7
-      )
-      .attr(
-        "y",
-        7
-      )
-      .attr(
-        "width",
-        PHOTO_SIZE
-      )
-      .attr(
-        "height",
-        PHOTO_SIZE
-      )
-      .attr(
-        "href",
-        getPhoto(person)
-      )
-      .attr(
-        "clip-path",
-        "circle(50%)"
-      )
-      .attr(
-        "preserveAspectRatio",
-        "xMidYMid slice"
-      );
-
-
-    card.append("text")
-      .attr(
-        "class",
-        "person-name"
-      )
-      .attr(
-        "x",
-        7 +
-          PHOTO_SIZE +
-          8
-      )
-      .attr(
-        "y",
-        CARD_H / 2
-      )
-      .text(
-        person.name || ""
-      );
-
-  }
-
-
-  /* =========================================================
-     8. GEOMETRY
-  ========================================================= */
-
-  function childTargetPoint(node) {
-
-    if (
-      node.type === "single"
-    ) {
-
-      return {
-        x: node.x,
-        y:
-          node.y +
-          CARD_H / 2
-      };
-
-    }
-
-
-    if (
-      node.type === "couple"
-    ) {
-
-      const sorted =
-        sortCouple(
-          node.people
-        );
-
-
-      const main =
-        node.people[0];
-
-
-      const mainIndex =
-        sorted[0].id === main.id
-          ? 0
-          : 1;
-
-
-      let x;
-
-
-      if (
-        mainIndex === 0
-      ) {
-
-        x =
-          node.x -
-          COUPLE_GAP / 2 -
-          CARD_W / 2;
-
-      }
-
-      else {
-
-        x =
-          node.x +
-          COUPLE_GAP / 2 +
-          CARD_W / 2;
-
-      }
-
-
-      return {
-        x,
-        y:
-          node.y +
-          CARD_H / 2
-      };
-
-    }
-
-
-    if (
-      node.type === "multi"
-    ) {
-
-      return {
-        x:
-          node.anchorX +
-          CARD_W / 2,
-
-        y:
-          node.y +
-          CARD_H / 2
-      };
-
-    }
-
-
-    return {
-      x: node.x,
-      y:
-        node.y +
-        CARD_H / 2
-    };
-
-  }
-
-
-  function marriageMidX(node) {
-
-    if (
-      node.type === "couple"
-    ) {
-      return node.x;
-    }
-
-
-    if (
-      node.type === "multi"
-    ) {
-
-      return (
-        node.anchorX +
-        CARD_W / 2
-      );
-
-    }
-
-
-    return node.x;
-
-  }
-
-
-  function childLine(
-    fromX,
-    fromY,
-    children
-  ) {
-
-    if (
-      !children ||
-      children.length === 0
-    ) {
-      return "";
-    }
-
-
-    const midY =
-      fromY +
-      (LEVEL_H -
-        CARD_H) /
-        2;
-
-
-    let path =
-      `M${fromX},${fromY} ` +
-      `L${fromX},${midY} `;
-
-
-    children.forEach(
-      c => {
-
-        const p =
-          childTargetPoint(c);
-
-
-        path +=
-          `M${fromX},${midY} ` +
-          `L${p.x},${midY} ` +
-          `L${p.x},${p.y} `;
-
-      }
-    );
-
-
-    return path;
-
-  }
-
-
-  /* =========================================================
-     PUBLIC CORE API
-  ========================================================= */
-
-  
-  return {
-
-    drawTree,
-    normalizeFamilyData,
-    buildFamilyTree,
-
-    getPhoto,
-    genderColor,
-    childrenWidth,
-    sortCouple,
-
-    measure,
-    placeChildren,
-    place,
-
-    drawLinks,
-    drawMarriageLines,
-    drawHearts,
-    drawNodes,
-    drawPersonCard,
-
-    childTargetPoint,
-    marriageMidX,
-    childLine,
-
-    getState: function() {
-
-      return {
-        svg,
-        g,
-        zoomHandler,
-        flatNodes,
-        familyData,
-        containerEl
-      };
-
-    },
-
-    setState: function(state) {
-
-      if ("svg" in state)
-        svg = state.svg;
-
-      if ("g" in state)
-        g = state.g;
-
-      if ("zoomHandler" in state)
-        zoomHandler =
-          state.zoomHandler;
-
-      if ("flatNodes" in state)
-        flatNodes =
-          state.flatNodes;
-
-      if ("familyData" in state)
-        familyData =
-          state.familyData;
-
-      if ("containerEl" in state)
-        containerEl =
-          state.containerEl;
-
-    }
+    clearHighlight
 
   };
+
 
 })();
